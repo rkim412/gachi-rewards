@@ -1,0 +1,14 @@
+# Learn more about configuring your extension at https://shopify.dev/docs/apps/app-extensions/configuration-reference
+
+api_version = "2026-01"
+
+[[extensions]]
+type = "ui_extension"
+name = "checkout-discount-applier"
+handle = "checkout-discount-applier"
+
+[extensions.targeting]
+[extensions.targeting.supported_targets]
+[extensions.targeting.supported_targets.unstable]
+targets = ["purchase.checkout.discount.render"]
+

@@ -1,0 +1,14 @@
+# Learn more about configuring your extension at https://shopify.dev/docs/apps/app-extensions/configuration-reference
+
+api_version = "2026-01"
+
+[[extensions]]
+type = "theme_app_extension"
+name = "storefront-script"
+handle = "storefront-script"
+
+[extensions.targeting]
+[extensions.targeting.supported_targets]
+[extensions.targeting.supported_targets.unstable]
+targets = ["theme.liquid"]
+

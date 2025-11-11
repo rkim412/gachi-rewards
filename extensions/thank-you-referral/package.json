@@ -1,0 +1,8 @@
+{
+  "name": "thank-you-referral",
+  "version": "1.0.0",
+  "dependencies": {
+    "@shopify/ui-extensions-react": "^2026.1.0"
+  }
+}
+

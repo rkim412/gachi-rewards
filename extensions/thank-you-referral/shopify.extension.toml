@@ -1,0 +1,29 @@
+# Learn more about configuring your extension at https://shopify.dev/docs/apps/app-extensions/configuration-reference
+
+api_version = "2026-01"
+
+[[extensions]]
+type = "ui_extension"
+name = "thank-you-referral"
+handle = "thank-you-referral"
+
+[extensions.targeting]
+[extensions.targeting.supported_targets]
+[extensions.targeting.supported_targets.unstable]
+targets = ["purchase.thank-you.order-status.render"]
+
+[extensions.settings]
+[[extensions.settings.fields]]
+key = "title"
+type = "single_line_text_field"
+name = "Title"
+optional = false
+default = "Share and earn rewards!"
+
+[[extensions.settings.fields]]
+key = "api_url"
+type = "single_line_text_field"
+name = "API URL"
+optional = false
+default = "/apps/gachi-rewards/api/generate"
+

@@ -1,0 +1,10 @@
+# Ignore local database files
+prisma/dev.sqlite
+prisma/dev.sqlite-journal
+*.db
+*.db-journal
+
+# Ignore local env files (Vercel uses its own)
+.env.local
+.env.development.local
+
