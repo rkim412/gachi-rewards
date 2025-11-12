@@ -1,9 +1,4 @@
 {
-  "buildCommand": "bash scripts/build.sh",
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/build/server/index.js"
-    }
-  ]
+  "buildCommand": "npm run build && npm run setup"
 }
+

@@ -11,40 +11,40 @@ Shopify referral engine app that enables viral growth through automatic referral
 
 ## Quick Start
 
-1. Install dependencies:
-   ```bash
-   npm install
-   ```
+### For Local Development
 
-2. Set up environment variables:
-   - Copy `.env.example` to `.env`
-   - Add your Shopify API credentials
-   - Add database connection string
+See **[SETUP-LOCAL.md](./SETUP-LOCAL.md)** for complete local development setup guide.
 
-3. Run database migrations:
-   ```bash
-   npm run db:migrate
-   ```
+Quick steps:
+1. Install dependencies: `npm install`
+2. Set up database (SQLite or PostgreSQL)
+3. Create `.env` file with Shopify credentials
+4. Run migrations: `npm run db:migrate`
+5. Start dev server: `npm run dev`
 
-4. Start development:
-   ```bash
-   npm run dev
-   ```
+### For Production Deployment
+
+See **[SETUP-PRODUCTION.md](./SETUP-PRODUCTION.md)** for complete Vercel deployment guide.
+
+Quick steps:
+1. Push code to GitHub
+2. Import to Vercel
+3. Create Vercel Postgres database
+4. Add environment variables
+5. Deploy!
+
+## Setup Guides
+
+- **[SETUP-LOCAL.md](./SETUP-LOCAL.md)** - Complete guide for local development with SQLite/PostgreSQL
+- **[SETUP-PRODUCTION.md](./SETUP-PRODUCTION.md)** - Complete guide for Vercel production deployment
 
 ## Deployment
 
-### Deploy to Vercel
+### Local Development
+Follow **[SETUP-LOCAL.md](./SETUP-LOCAL.md)** to set up local development environment.
 
-1. Import this repository to Vercel
-2. Create Vercel Postgres database
-3. Add environment variables:
-   - `SHOPIFY_API_KEY`
-   - `SHOPIFY_API_SECRET`
-   - `SHOPIFY_APP_URL` (your Vercel URL)
-   - `SCOPES` (see `shopify.app.toml`)
-   - `DATABASE_URL` (use `POSTGRES_PRISMA_URL` from Vercel)
-   - `NODE_ENV=production`
-4. Deploy - migrations run automatically
+### Production (Vercel)
+Follow **[SETUP-PRODUCTION.md](./SETUP-PRODUCTION.md)** for step-by-step Vercel deployment.
 
 ### Deploy Shopify Extensions
 
@@ -83,6 +83,7 @@ Required environment variables:
 - `SHOPIFY_APP_URL` - Your app URL (e.g., `https://your-app.vercel.app`)
 - `SCOPES` - Comma-separated Shopify scopes
 - `DATABASE_URL` - PostgreSQL connection string
+  - **For Vercel**: Use `POSTGRES_PRISMA_URL` from Vercel Postgres database
 - `NODE_ENV` - Set to `production` for production
 
 ## License
