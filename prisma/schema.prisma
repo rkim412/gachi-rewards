@@ -6,14 +6,11 @@ generator client {
 }
 
 // Database Configuration
-// Using PostgreSQL for production-ready multi-tenant support
-// Set DATABASE_URL environment variable:
-// Example: DATABASE_URL="postgresql://user:password@localhost:5432/gachi_rewards"
-// For local development with Docker: DATABASE_URL="postgresql://postgres:postgres@localhost:5432/gachi_rewards"
-// For Vercel: Use POSTGRES_PRISMA_URL from Vercel Postgres database
+// Using SQLite for local development (easiest, no database server needed)
+// For production: Change to PostgreSQL and use DATABASE_URL from Vercel Postgres
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./dev.sqlite"
 }
 
 // ============================================================================

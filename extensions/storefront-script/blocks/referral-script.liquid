@@ -1,0 +1,21 @@
+{% comment %}
+  App Embed Block for Gachi Rewards Referral Script
+  This automatically injects into theme.liquid and detects referral links (?ref=CODE)
+  to apply discount codes. Merchants can enable/disable this in Theme Settings > App embeds
+{% endcomment %}
+
+<script src="{{ 'applyReferral.js' | asset_url }}" defer></script>
+
+{% schema %}
+{
+  "name": "Referral Script",
+  "target": "body",
+  "settings": [
+    {
+      "type": "paragraph",
+      "content": "This automatically detects referral links (?ref=CODE) and applies discount codes. No configuration needed."
+    }
+  ]
+}
+{% endschema %}
+

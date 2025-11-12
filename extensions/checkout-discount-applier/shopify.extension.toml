@@ -3,12 +3,14 @@
 api_version = "2026-01"
 
 [[extensions]]
+
+uid = "8857175b-72bd-0ddd-fc49-2dbafcd4dd8d43f51242"
+
 type = "ui_extension"
 name = "checkout-discount-applier"
 handle = "checkout-discount-applier"
 
-[extensions.targeting]
-[extensions.targeting.supported_targets]
-[extensions.targeting.supported_targets.unstable]
-targets = ["purchase.checkout.discount.render"]
+[[extensions.targeting]]
+target = "purchase.checkout.block.render"
+module = "./src/index.jsx"
 

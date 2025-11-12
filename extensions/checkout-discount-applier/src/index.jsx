@@ -1,3 +1,4 @@
+import React from "react";
 import {
   reactExtension,
   useApi,
@@ -6,7 +7,7 @@ import {
   Banner,
 } from "@shopify/ui-extensions-react/checkout";
 
-export default reactExtension("purchase.checkout.discount.render", () => (
+export default reactExtension("purchase.checkout.block.render", () => (
   <CheckoutDiscountApplier />
 ));
 
@@ -23,7 +24,7 @@ function CheckoutDiscountApplier() {
     try {
       // Get cart attributes
       const cart = await query("cart");
-      const attributes = cart?.attributes || {};
+      const attributes = cart?.attributes || [];
 
       const gachiRef = attributes.find(attr => attr.key === "gachi_ref");
       const gachiDiscountCode = attributes.find(attr => attr.key === "gachi_discount_code");

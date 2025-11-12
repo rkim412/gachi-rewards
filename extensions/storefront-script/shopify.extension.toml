@@ -3,12 +3,8 @@
 api_version = "2026-01"
 
 [[extensions]]
+uid = "1843a996-fbce-cb52-634e-c700a398c442b43f6bc6"
 type = "theme_app_extension"
 name = "storefront-script"
 handle = "storefront-script"
-
-[extensions.targeting]
-[extensions.targeting.supported_targets]
-[extensions.targeting.supported_targets.unstable]
-targets = ["theme.liquid"]
 

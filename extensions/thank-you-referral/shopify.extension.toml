@@ -3,14 +3,16 @@
 api_version = "2026-01"
 
 [[extensions]]
+
+uid = "3da27348-cbb8-f071-47dc-b9921f51fc840f4a3c67"
+
 type = "ui_extension"
 name = "thank-you-referral"
 handle = "thank-you-referral"
 
-[extensions.targeting]
-[extensions.targeting.supported_targets]
-[extensions.targeting.supported_targets.unstable]
-targets = ["purchase.thank-you.order-status.render"]
+[[extensions.targeting]]
+target = "purchase.thank-you.block.render"
+module = "./src/index.jsx"
 
 [extensions.settings]
 [[extensions.settings.fields]]

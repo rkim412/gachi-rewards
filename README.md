@@ -11,6 +11,10 @@ Shopify referral engine app that enables viral growth through automatic referral
 
 ## Quick Start
 
+### ⚡ Fastest Way to Get Started
+
+See **[QUICK-START.md](./QUICK-START.md)** for a **5-minute setup guide** to get running locally and testing right away! ⭐
+
 ### For Local Development
 
 See **[SETUP-LOCAL.md](./SETUP-LOCAL.md)** for complete local development setup guide.
@@ -35,7 +39,10 @@ Quick steps:
 
 ## Setup Guides
 
+- **[QUICK-START.md](./QUICK-START.md)** - **🚀 5-minute quick start: Get running locally and testing right away!** ⭐
+- **[LOCALHOST-URL-SETUP.md](./LOCALHOST-URL-SETUP.md)** - **🔗 Complete guide to setting up localhost and tunnel URLs**
 - **[SETUP-LOCAL.md](./SETUP-LOCAL.md)** - Complete guide for local development with SQLite/PostgreSQL
+- **[DEPLOY-TO-SHOPIFY-TEST.md](./DEPLOY-TO-SHOPIFY-TEST.md)** - Deploy and test in Shopify
 - **[SETUP-PRODUCTION.md](./SETUP-PRODUCTION.md)** - Complete guide for Vercel production deployment
 
 ## Deployment

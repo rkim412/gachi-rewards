@@ -332,6 +332,82 @@ npm install -g @shopify/cli@latest
 - **SQLite**: Make sure you updated `prisma/schema.prisma` to use SQLite
 - **PostgreSQL**: Make sure PostgreSQL is running and database exists
 
+### "SQLite database error: database is locked"
+This happens when multiple processes try to access the database. Fix it:
+
+1. **Close Prisma Studio** (if open):
+   - Find the terminal running `npm run db:studio`
+   - Press `Ctrl+C` to stop it
+
+2. **Stop the dev server** (if running):
+   - Find the terminal running `npm run dev`
+   - Press `Ctrl+C` to stop it
+
+3. **Delete lock files** (if they exist):
+   ```bash
+   # Windows (PowerShell) - Quick fix script:
+   .\scripts\fix-database-locked.ps1
+   
+   # Or manually:
+   Remove-Item prisma\dev.sqlite-wal -ErrorAction SilentlyContinue
+   Remove-Item prisma\dev.sqlite-shm -ErrorAction SilentlyContinue
+   
+   # Mac/Linux - Quick fix script:
+   ./scripts/fix-database-locked.sh
+   
+   # Or manually:
+   rm prisma/dev.sqlite-wal prisma/dev.sqlite-shm 2>/dev/null
+   ```
+
+4. **Try again**:
+   ```bash
+   npm run db:migrate
+   ```
+
+**Important:** Only run one database operation at a time. Don't run `npm run db:studio` and `npm run db:migrate` at the same time!
+
+### "Socket timeout" or "database failed to respond"
+This can happen with SQLite. Try these fixes:
+
+1. **Restart your dev server**:
+   - Stop `npm run dev` (Ctrl+C)
+   - Start it again: `npm run dev`
+
+2. **Close Prisma Studio** (if open):
+   - Stop `npm run db:studio` (Ctrl+C)
+
+3. **Check database file location**:
+   - Make sure `prisma/dev.sqlite` exists
+   - If missing, run: `npm run db:migrate`
+
+4. **Disable WAL mode** (if issues persist):
+   ```bash
+   # Windows (PowerShell) - requires sqlite3 CLI
+   sqlite3 prisma\dev.sqlite "PRAGMA journal_mode=DELETE;"
+   
+   # Mac/Linux
+   sqlite3 prisma/dev.sqlite "PRAGMA journal_mode=DELETE;"
+   ```
+
+5. **If still failing, recreate database**:
+   ```bash
+   # Backup first (optional)
+   # Windows
+   Copy-Item prisma\dev.sqlite prisma\dev.sqlite.backup
+   # Mac/Linux
+   cp prisma/dev.sqlite prisma/dev.sqlite.backup
+   
+   # Delete and recreate
+   # Windows
+   Remove-Item prisma\dev.sqlite
+   # Mac/Linux
+   rm prisma/dev.sqlite
+   
+   npm run db:migrate
+   ```
+
+**Note:** The code has been updated to not use Prisma Accelerate with SQLite (which was causing timeouts). Make sure you have the latest code.
+
 ### "Invalid API credentials"
 - Double-check your `SHOPIFY_API_KEY` and `SHOPIFY_API_SECRET` in `.env`
 - Make sure there are no extra spaces or quotes
