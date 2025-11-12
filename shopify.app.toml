@@ -1,6 +1,6 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-client_id = "741daef6a0dbfd373e58335c837b9b4f"
+client_id = "f232a78339525e79f08b9bcec3b61b8f"
 name = "Gachi Rewards"
 application_url = "https://gachi-rewards.vercel.app"
 embedded = true
