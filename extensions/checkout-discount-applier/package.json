@@ -2,7 +2,7 @@
   "name": "checkout-discount-applier",
   "version": "1.0.0",
   "dependencies": {
-    "@shopify/ui-extensions-react": "^2024.1.0"
+    "@shopify/ui-extensions-react": "2024.10.2"
   }
 }
 
