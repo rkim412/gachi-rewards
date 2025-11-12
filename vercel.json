@@ -1,17 +1,9 @@
 {
   "buildCommand": "npm run build && npm run setup",
-  "devCommand": "npm run dev",
-  "installCommand": "npm install",
-  "framework": null,
-  "outputDirectory": "build/client",
-  "serverFiles": ["build/server"],
   "rewrites": [
     {
       "source": "/(.*)",
       "destination": "/build/server/index.js"
     }
-  ],
-  "env": {
-    "NODE_ENV": "production"
-  }
+  ]
 }
