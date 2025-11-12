@@ -10,6 +10,7 @@ generator client {
 // Set DATABASE_URL environment variable:
 // Example: DATABASE_URL="postgresql://user:password@localhost:5432/gachi_rewards"
 // For local development with Docker: DATABASE_URL="postgresql://postgres:postgres@localhost:5432/gachi_rewards"
+// For Vercel: Use POSTGRES_PRISMA_URL from Vercel Postgres database
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
