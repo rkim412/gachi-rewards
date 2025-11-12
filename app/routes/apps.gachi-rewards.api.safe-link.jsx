@@ -1,6 +1,6 @@
 import { json } from "react-router";
-import { verifyAppProxyRequest } from "../../services/proxy.server.js";
-import { createSafeLink } from "../../services/referral.server.js";
+import { verifyAppProxyRequest } from "../services/proxy.server.js";
+import { createSafeLink } from "../services/referral.server.js";
 
 /**
  * App Proxy route for creating safe links

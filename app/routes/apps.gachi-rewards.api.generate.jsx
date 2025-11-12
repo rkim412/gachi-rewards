@@ -1,9 +1,9 @@
 import { json } from "react-router";
-import { verifyAppProxyRequest } from "../../services/proxy.server.js";
-import { authenticate } from "../../shopify.server.js";
-import { findOrCreateReferralCode } from "../../services/referral.server.js";
-import { createShopifyDiscount } from "../../services/discount.server.js";
-import prisma from "../../db.server.js";
+import { verifyAppProxyRequest } from "../services/proxy.server.js";
+import { authenticate } from "../shopify.server.js";
+import { findOrCreateReferralCode } from "../services/referral.server.js";
+import { createShopifyDiscount } from "../services/discount.server.js";
+import prisma from "../db.server.js";
 
 /**
  * App Proxy route for generating referral codes
