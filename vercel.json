@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npm run build && npm run setup",
+  "buildCommand": "git config --global user.name 'Vercel' && git config --global user.email 'vercel@vercel.com' && npm run build && npm run setup",
   "rewrites": [
     {
       "source": "/(.*)",
