@@ -42,11 +42,13 @@ async function getRequestHandler() {
             actionData: {},
             errors: null,
           },
-          // Build info
+          // Build info with correct publicPath
           build: {
             assets: build.assets,
             entry: build.entry,
             routes: build.routes,
+            publicPath: build.publicPath || "/", // Ensure publicPath is set correctly
+            assetsBuildDirectory: build.assetsBuildDirectory || "build/client",
           },
         };
         
