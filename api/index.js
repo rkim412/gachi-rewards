@@ -14,95 +14,110 @@ async function getRequestHandler() {
   }
 
   try {
-    // Import the server build - React Router v7 exports build config, not a handler directly
+    // Import the server build - React Router v7 exports build config
     const build = await import("../build/server/index.js");
     
     // React Router v7's build structure: entry.module contains config, not file path
-    // The actual server handler needs to be constructed from the build
-    // Try to import the entry server file directly
-    let serverEntry = null;
+    // We need to find the actual server entry file or construct a handler from routes
+    
+    // Try to find the server entry file by checking build.entry for file references
+    let serverEntryFile = null;
+    
+    // Check if entry has a file property or if we can infer it
+    if (build.entry?.file) {
+      serverEntryFile = build.entry.file;
+    } else if (build.entry?.module?.file) {
+      serverEntryFile = build.entry.module.file;
+    }
     
     // Try common server entry file paths
-    const possibleEntryPaths = [
-      "entry.server.js",
-      "entry.server.mjs",
-      "entry.server.jsx",
-      "index.js",
-      "index.mjs",
-    ];
+    const possibleEntryPaths = serverEntryFile 
+      ? [serverEntryFile]
+      : [
+          "entry.server.js",
+          "entry.server.mjs", 
+          "entry.server.jsx",
+          "entry.server.ts",
+          "entry.server.tsx",
+        ];
     
+    let serverEntry = null;
     for (const path of possibleEntryPaths) {
       try {
-        const attempt = await import(`../build/server/${path}`);
-        if (typeof attempt.default === "function") {
-          serverEntry = attempt;
-          console.log(`✅ Found server entry at: ${path}`);
-          break;
+        // Try different path formats
+        const pathsToTry = [
+          `../build/server/${path}`,
+          `../build/server/${path.replace(/\.(js|mjs|jsx|ts|tsx)$/, '')}.js`,
+          `../build/server/${path.replace(/\.(js|mjs|jsx|ts|tsx)$/, '')}.mjs`,
+        ];
+        
+        for (const importPath of pathsToTry) {
+          try {
+            const attempt = await import(importPath);
+            if (typeof attempt.default === "function") {
+              serverEntry = attempt;
+              console.log(`✅ Found server entry at: ${importPath}`);
+              break;
+            }
+          } catch (e) {
+            // Continue to next path
+          }
         }
+        
+        if (serverEntry) break;
       } catch (e) {
         // Continue to next path
       }
     }
     
     // If we found the server entry, use it
-    if (serverEntry) {
-      if (typeof serverEntry.default === "function") {
-        // The entry.server.jsx exports a handleRequest function
-        // We need to wrap it to create a full request handler
-        const handleRequest = serverEntry.default;
-        
-        // Create a handler that matches React Router's expected signature
-        requestHandler = async (request, context = {}) => {
-          // React Router v7 expects a context with reactRouterContext
-          // We need to create a minimal context
-          const reactRouterContext = {
-            staticHandlerContext: {
-              url: request.url,
-              matches: [],
-            },
-          };
-          
-          let responseStatusCode = 200;
-          const responseHeaders = new Headers();
-          
-          try {
-            const response = await handleRequest(
-              request,
-              responseStatusCode,
-              responseHeaders,
-              reactRouterContext
-            );
-            return response;
-          } catch (error) {
-            console.error("Error in handleRequest:", error);
-            return new Response("Internal Server Error", { status: 500 });
-          }
+    if (serverEntry && typeof serverEntry.default === "function") {
+      const handleRequest = serverEntry.default;
+      
+      // Create a handler that matches React Router's expected signature
+      requestHandler = async (request, context = {}) => {
+        // React Router v7 expects a context with reactRouterContext
+        // We need to create a proper context from the build
+        const reactRouterContext = {
+          staticHandlerContext: {
+            url: request.url,
+            matches: [],
+          },
         };
-      }
+        
+        let responseStatusCode = 200;
+        const responseHeaders = new Headers();
+        
+        try {
+          const response = await handleRequest(
+            request,
+            responseStatusCode,
+            responseHeaders,
+            reactRouterContext
+          );
+          return response;
+        } catch (error) {
+          console.error("Error in handleRequest:", error);
+          return new Response("Internal Server Error", { status: 500 });
+        }
+      };
     }
     
-    // If we still don't have a handler, try to use the routes directly
-    if (!requestHandler && build.routes) {
-      console.log("Attempting to create handler from routes...");
-      // This is a fallback - React Router v7 should have a better way
-      // For now, we'll throw a more helpful error
-      throw new Error(
-        "Could not find server handler. Build structure: " +
-        JSON.stringify({
-          hasRoutes: !!build.routes,
-          entry: build.entry,
-          availableExports: Object.keys(build),
-        }, null, 2)
-      );
-    }
-    
-    // Final check
+    // If we still don't have a handler, we need to construct one from routes
+    // This is a more complex approach - React Router v7 should provide a handler
     if (!requestHandler) {
+      console.error("Could not find server entry file. Build structure:", {
+        hasRoutes: !!build.routes,
+        entry: build.entry,
+        availableExports: Object.keys(build),
+      });
+      
+      // Try to list what's actually in build/server
       throw new Error(
-        "React Router handler not found. Available exports: " +
-        Object.keys(build).join(", ") +
-        ". Entry: " +
-        JSON.stringify(build.entry)
+        "Could not find server handler. " +
+        "Tried entry files: " + possibleEntryPaths.join(", ") + ". " +
+        "Build has routes: " + !!build.routes + ". " +
+        "Please check build/server directory structure."
       );
     }
     
