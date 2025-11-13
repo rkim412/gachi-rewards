@@ -29,11 +29,24 @@ async function getRequestHandler() {
       // Create a handler that matches React Router's expected signature
       requestHandler = async (request, context = {}) => {
         // React Router v7 expects a context with reactRouterContext
-        // We need to create a proper context from the build
+        // We need to create a proper context from the build that includes routes
+        // The context needs to match what React Router's ServerRouter expects
         const reactRouterContext = {
+          // ServerRouter needs routes from the context
+          routes: build.routes || [],
+          // Static handler context for routing
           staticHandlerContext: {
             url: request.url,
             matches: [],
+            loaderData: {},
+            actionData: {},
+            errors: null,
+          },
+          // Build info
+          build: {
+            assets: build.assets,
+            entry: build.entry,
+            routes: build.routes,
           },
         };
         
