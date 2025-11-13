@@ -180,9 +180,18 @@ async function getRequestHandler() {
           
           // The context from staticHandler.query doesn't include routes
           // ServerRouter needs routes in the context, so we need to add it
+          // ServerRouter may also expect routes in context.build.routes
           reactRouterContext = {
             ...queryContext, // Include all the routing state from query (location, matches, loaderData, etc.)
-            routes: routes,  // Add the routes array that ServerRouter expects
+            routes: routes,  // Add the routes array that ServerRouter expects at top level
+            build: {
+              // Include build info that ServerRouter might need
+              assets: build.assets,
+              entry: build.entry,
+              routes: routes,  // Also include routes in build object (ServerRouter might check here)
+              publicPath: build.publicPath || "/",
+              assetsBuildDirectory: build.assetsBuildDirectory || "build/client",
+            },
           };
           
           console.log("✅ Created context from staticHandler.query with routes:", {
