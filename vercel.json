@@ -4,5 +4,17 @@
   "framework": null,
   "outputDirectory": "build/client",
   "devCommand": null,
-  "regions": ["iad1"]
+  "regions": ["iad1"],
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/api/index"
+    }
+  ],
+  "functions": {
+    "api/index.js": {
+      "runtime": "nodejs20.x",
+      "maxDuration": 30
+    }
+  }
 }
