@@ -17,6 +17,46 @@ async function getRequestHandler() {
     // Import the server build - React Router v7 exports build config
     const build = await import("../build/server/index.js");
     
+    // Log build structure for debugging
+    console.log("📦 Build structure:", {
+      hasRoutes: !!build.routes,
+      routesType: typeof build.routes,
+      routesIsArray: Array.isArray(build.routes),
+      routesLength: build.routes?.length || 0,
+      hasEntry: !!build.entry,
+      entryType: typeof build.entry,
+      availableExports: Object.keys(build),
+    });
+    
+    // Get routes from build, or fallback to empty array
+    // React Router v7 should export routes in build.routes
+    let routes = build.routes;
+    
+    // If routes is not available in build, try to get it from the routes export
+    if (!routes || !Array.isArray(routes) || routes.length === 0) {
+      console.log("⚠️  build.routes not available, attempting to import routes directly...");
+      try {
+        // Try importing routes from the built routes file
+        const routesModule = await import("../build/server/routes.js");
+        routes = routesModule.default || routesModule.routes || [];
+        console.log("✅ Imported routes from build/server/routes.js:", routes.length);
+      } catch (routesError) {
+        console.warn("⚠️  Could not import routes from build/server/routes.js:", routesError.message);
+        routes = []; // Fallback to empty array
+      }
+    }
+    
+    // Ensure routes is always an array
+    if (!Array.isArray(routes)) {
+      console.warn("⚠️  routes is not an array, converting to array");
+      routes = [];
+    }
+    
+    console.log("✅ Using routes:", {
+      count: routes.length,
+      isArray: Array.isArray(routes),
+    });
+    
     // React Router v7's build structure: entry.module is a Module object with default export
     // The error logs show: entry.module.default is [AsyncFunction: handleRequest]
     // So we can use build.entry.module.default directly!
@@ -28,13 +68,15 @@ async function getRequestHandler() {
       
       // Create a handler that matches React Router's expected signature
       requestHandler = async (request, context = {}) => {
-        // React Router v7 expects a context with reactRouterContext
-        // We need to create a proper context from the build that includes routes
-        // The context needs to match what React Router's ServerRouter expects
+        // React Router v7's ServerRouter expects a context with routes at the top level
+        // The context must have routes property that ServerRouter can access
+        // Ensure routes is always an array, never undefined
+        
+        // Create the reactRouterContext that ServerRouter expects
+        // ServerRouter accesses context.routes directly, so it must be at top level
         const reactRouterContext = {
-          // ServerRouter needs routes from the context
-          routes: build.routes || [],
-          // Static handler context for routing
+          routes: routes, // This MUST be at the top level for ServerRouter
+          // Additional context properties that might be needed
           staticHandlerContext: {
             url: request.url,
             matches: [],
@@ -46,11 +88,22 @@ async function getRequestHandler() {
           build: {
             assets: build.assets,
             entry: build.entry,
-            routes: build.routes,
-            publicPath: build.publicPath || "/", // Ensure publicPath is set correctly
+            routes: routes,
+            publicPath: build.publicPath || "/",
             assetsBuildDirectory: build.assetsBuildDirectory || "build/client",
           },
         };
+        
+        // Ensure reactRouterContext is never undefined
+        if (!reactRouterContext || !reactRouterContext.routes) {
+          console.error("❌ reactRouterContext is invalid:", {
+            hasContext: !!reactRouterContext,
+            hasRoutes: !!(reactRouterContext && reactRouterContext.routes),
+            routesLength: routes.length,
+            buildRoutes: !!build.routes,
+          });
+          return new Response("Internal Server Error: Invalid router context", { status: 500 });
+        }
         
         let responseStatusCode = 200;
         const responseHeaders = new Headers();
@@ -65,6 +118,12 @@ async function getRequestHandler() {
           return response;
         } catch (error) {
           console.error("Error in handleRequest:", error);
+          console.error("Context structure:", {
+            hasContext: !!reactRouterContext,
+            hasRoutes: !!(reactRouterContext && reactRouterContext.routes),
+            routesType: typeof reactRouterContext?.routes,
+            routesIsArray: Array.isArray(reactRouterContext?.routes),
+          });
           return new Response("Internal Server Error", { status: 500 });
         }
       };
