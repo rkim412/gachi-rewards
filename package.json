@@ -72,7 +72,8 @@
     "@shopify/plugin-cloudflare"
   ],
   "overrides": {
-    "p-map": "^4.0.0"
+    "p-map": "^4.0.0",
+    "@shopify/ui-extensions-react": "2024.10.2"
   },
   "author": "ryank"
 }
