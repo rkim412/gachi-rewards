@@ -170,7 +170,7 @@ async function getRequestHandler() {
         
         try {
           // Query the static handler to get the proper context
-          // This creates a context with the correct structure for ServerRouter
+          // This creates a context with routing state (location, matches, loaderData, etc.)
           const queryContext = await staticHandler.query(request);
           
           // If query returns a Response (redirect, error, etc.), return it directly
@@ -178,10 +178,14 @@ async function getRequestHandler() {
             return queryContext;
           }
           
-          // The context from staticHandler.query is the proper structure ServerRouter expects
-          reactRouterContext = queryContext;
+          // The context from staticHandler.query doesn't include routes
+          // ServerRouter needs routes in the context, so we need to add it
+          reactRouterContext = {
+            ...queryContext, // Include all the routing state from query (location, matches, loaderData, etc.)
+            routes: routes,  // Add the routes array that ServerRouter expects
+          };
           
-          console.log("✅ Created context from staticHandler.query:", {
+          console.log("✅ Created context from staticHandler.query with routes:", {
             hasContext: !!reactRouterContext,
             hasRoutes: !!(reactRouterContext && reactRouterContext.routes),
             contextKeys: reactRouterContext ? Object.keys(reactRouterContext) : [],
