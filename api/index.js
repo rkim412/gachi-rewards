@@ -103,8 +103,69 @@ async function getRequestHandler() {
       };
     }
     
-    // If we still don't have a handler, we need to construct one from routes
-    // This is a more complex approach - React Router v7 should provide a handler
+    // If we still don't have a handler, try to use React Router's routing system
+    // React Router v7 might need us to construct the handler from routes
+    if (!requestHandler && build.routes) {
+      console.log("Attempting to create handler from routes...");
+      
+      // Try to import React Router's server utilities
+      try {
+        // React Router v7 might export a createRequestHandler or similar
+        // Let's try importing from react-router/server or similar
+        const { createRequestHandler } = await import("react-router/server");
+        requestHandler = createRequestHandler({
+          build,
+          mode: process.env.NODE_ENV || "production",
+        });
+        console.log("✅ Created handler using react-router/server");
+      } catch (routerError) {
+        console.error("Failed to use react-router/server:", routerError.message);
+        
+        // Last resort: try to manually construct a basic handler
+        // This is a simplified version that might work for basic routes
+        console.log("Attempting manual route handler construction...");
+        
+        // Import the entry server directly from the source location
+        try {
+          const entryServer = await import("../../app/entry.server.jsx");
+          if (typeof entryServer.default === "function") {
+            const handleRequest = entryServer.default;
+            
+            requestHandler = async (request, context = {}) => {
+              // We need to create a proper React Router context
+              // This is a simplified version
+              const reactRouterContext = {
+                staticHandlerContext: {
+                  url: request.url,
+                  matches: [],
+                },
+              };
+              
+              let responseStatusCode = 200;
+              const responseHeaders = new Headers();
+              
+              try {
+                const response = await handleRequest(
+                  request,
+                  responseStatusCode,
+                  responseHeaders,
+                  reactRouterContext
+                );
+                return response;
+              } catch (error) {
+                console.error("Error in handleRequest:", error);
+                return new Response("Internal Server Error", { status: 500 });
+              }
+            };
+            console.log("✅ Created handler using app/entry.server.jsx");
+          }
+        } catch (sourceError) {
+          console.error("Failed to import from app/entry.server.jsx:", sourceError.message);
+        }
+      }
+    }
+    
+    // Final check
     if (!requestHandler) {
       console.error("Could not find server entry file. Build structure:", {
         hasRoutes: !!build.routes,
@@ -112,7 +173,6 @@ async function getRequestHandler() {
         availableExports: Object.keys(build),
       });
       
-      // Try to list what's actually in build/server
       throw new Error(
         "Could not find server handler. " +
         "Tried entry files: " + possibleEntryPaths.join(", ") + ". " +
