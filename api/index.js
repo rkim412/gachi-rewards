@@ -36,7 +36,7 @@ async function getRequestHandler() {
     }
     
     // Try to import the server entry if we have a path
-    if (entryPath) {
+    if (entryPath && typeof entryPath === "string") {
       // Ensure the path is relative and doesn't start with ./
       const normalizedPath = entryPath.startsWith("./") 
         ? entryPath 
@@ -57,6 +57,9 @@ async function getRequestHandler() {
         console.error("Failed to import server entry:", importError.message);
         // Fall through to try other methods
       }
+    } else if (entryPath) {
+      // entryPath exists but is not a string - log it for debugging
+      console.log("entryPath is not a string, type:", typeof entryPath, "value:", JSON.stringify(entryPath));
     }
     
     // Fallback: try to use @react-router/serve's createRequestHandler
