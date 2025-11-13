@@ -3,7 +3,8 @@
  * This handles all requests and routes them through React Router
  */
 
-import { installGlobals } from "@react-router/node";
+import pkg from '@react-router/node';
+const { installGlobals } = pkg;
 
 // Install Node.js globals (fetch, Request, Response, etc.)
 installGlobals();
