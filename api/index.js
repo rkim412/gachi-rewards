@@ -61,22 +61,129 @@ async function getRequestHandler() {
       // The object has route IDs as keys and route definitions as values
       const routesArray = Object.values(routes);
       
-      // Don't filter - React Router v7 build already has the correct route structure
-      // All routes in the manifest should be valid, including the root route
-      // Filtering by route.module might remove valid routes like the root route
+      // Process routes to ensure they have components/elements
+      // Routes with `module` properties need to be converted to use lazy() or have Component
+      // React Router v7 route modules export a default component that needs to be loaded
+      const processedRoutes = routesArray.map(route => {
+        // If route already has Component, element, or lazy, use it as-is
+        if (route.Component || route.element || route.lazy || route.component) {
+          return route;
+        }
+        
+        // If route has a module property, convert it to lazy loading
+        // Route modules export a default component per React Router v7 docs
+        if (route.module) {
+          // Create a lazy loader for the module
+          // The module should export a default component (per Route Module docs)
+          const originalModulePath = route.module;
+          
+          // Build module paths to try - React Router v7 build structure
+          // Module paths are typically relative to build/server/
+          const pathsToTry = [];
+          
+          // If it's already an absolute path or URL, use it directly
+          if (originalModulePath.startsWith('/') || originalModulePath.startsWith('http')) {
+            pathsToTry.push(originalModulePath);
+          } else {
+            // Try different relative path resolutions
+            // 1. Relative to build/server (most common)
+            if (originalModulePath.startsWith('./')) {
+              pathsToTry.push(`../build/server/${originalModulePath.slice(2)}`);
+            } else if (originalModulePath.startsWith('../')) {
+              pathsToTry.push(`../build/server/${originalModulePath}`);
+            } else {
+              // No leading ./ or ../, assume it's relative to build/server
+              pathsToTry.push(`../build/server/${originalModulePath}`);
+            }
+            
+            // 2. Try with .js extension if not present
+            if (!originalModulePath.endsWith('.js') && !originalModulePath.endsWith('.jsx') && !originalModulePath.endsWith('.ts') && !originalModulePath.endsWith('.tsx')) {
+              const withJs = pathsToTry[pathsToTry.length - 1] + '.js';
+              pathsToTry.push(withJs);
+            }
+            
+            // 3. Try original path as-is (might work in some cases)
+            pathsToTry.push(originalModulePath);
+          }
+          
+          return {
+            ...route,
+            lazy: async () => {
+              let module;
+              let lastError;
+              
+              // Try each path until one works
+              for (const path of pathsToTry) {
+                try {
+                  module = await import(path);
+                  console.log(`✅ Successfully loaded module ${originalModulePath} from ${path}`);
+                  break;
+                } catch (importError) {
+                  lastError = importError;
+                  // Continue to next path
+                  continue;
+                }
+              }
+              
+              if (!module) {
+                console.error(`❌ Failed to load module ${originalModulePath} from all paths:`, pathsToTry);
+                console.error(`   Last error:`, lastError?.message);
+                // Return a fallback component that renders nothing
+                // This prevents the "no element" warning but won't render anything
+                return {
+                  Component: () => {
+                    console.warn(`Route ${route.id || route.path} component failed to load`);
+                    return null;
+                  },
+                };
+              }
+              
+              // Route modules export a default component per React Router v7 docs
+              // Return an object with Component from the module's default export
+              const Component = module.default;
+              
+              if (!Component) {
+                console.error(`❌ Module ${originalModulePath} does not have a default export`);
+                return {
+                  Component: () => {
+                    console.warn(`Route ${route.id || route.path} has no default export`);
+                    return null;
+                  },
+                };
+              }
+              
+              return {
+                Component: Component,
+              };
+            },
+          };
+        }
+        
+        // If route has no component and no module, log a warning but keep it
+        // (might be a layout route with only children)
+        if (!route.children && route.path !== undefined && route.path !== "") {
+          console.warn(`⚠️  Route ${route.id || route.path} has no component or module`);
+        }
+        
+        return route;
+      });
+      
       console.log("✅ Converted route manifest to array:", {
         totalRoutes: routesArray.length,
-        routeIds: routesArray.map(r => r.id || r.path || "unknown").slice(0, 10),
-        hasRootRoute: routesArray.some(r => r.path === "" || r.id === "root" || r.id?.includes("root")),
-        sampleRoute: routesArray[0] ? {
-          id: routesArray[0].id,
-          path: routesArray[0].path,
-          hasModule: !!routesArray[0].module,
-          hasComponent: !!(routesArray[0].Component || routesArray[0].element || routesArray[0].component),
+        processedRoutes: processedRoutes.length,
+        routeIds: processedRoutes.map(r => r.id || r.path || "unknown").slice(0, 10),
+        hasRootRoute: processedRoutes.some(r => r.path === "" || r.path === "/" || r.id === "root" || r.id?.includes("root") || r.id?.includes("_index")),
+        rootRoute: processedRoutes.find(r => r.path === "" || r.path === "/" || r.id === "root" || r.id?.includes("root") || r.id?.includes("_index")),
+        sampleRoute: processedRoutes[0] ? {
+          id: processedRoutes[0].id,
+          path: processedRoutes[0].path,
+          hasModule: !!processedRoutes[0].module,
+          hasComponent: !!(processedRoutes[0].Component || processedRoutes[0].element || processedRoutes[0].component),
+          hasLazy: !!processedRoutes[0].lazy,
         } : null,
       });
       
-      routes = routesArray;
+      routes = processedRoutes;
     }
     
     // If routes is still not an array, try routeDiscovery
