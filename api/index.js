@@ -4,7 +4,6 @@
  */
 
 import { installGlobals } from "@react-router/node";
-import { createRequestHandler } from "@react-router/serve";
 
 // Install Node.js globals (fetch, Request, Response, etc.)
 installGlobals();
@@ -17,14 +16,26 @@ async function getRequestHandler() {
   }
 
   try {
+    // Import the server build - React Router v7 exports a default handler
     const build = await import("../build/server/index.js");
-    requestHandler = createRequestHandler({
-      build,
-      mode: process.env.NODE_ENV || "production",
-    });
+    
+    // React Router v7's build exports a default handler function
+    if (typeof build.default === "function") {
+      requestHandler = build.default;
+    } else if (build.handler) {
+      requestHandler = build.handler;
+    } else {
+      throw new Error("React Router handler not found in build. Available exports: " + Object.keys(build).join(", "));
+    }
+    
     return requestHandler;
   } catch (error) {
     console.error("Failed to import React Router build:", error);
+    console.error("Error details:", {
+      message: error.message,
+      stack: error.stack,
+      code: error.code,
+    });
     throw error;
   }
 }
@@ -34,15 +45,15 @@ export default async function handler(req, res) {
     // Create a proper URL from the request
     const protocol = req.headers["x-forwarded-proto"] || "https";
     const host = req.headers.host;
-    const url = new URL(req.url, `${protocol}://${host}`);
+    const url = new URL(req.url || "/", `${protocol}://${host}`);
 
     // Create a Request object compatible with React Router
     const request = new Request(url, {
-      method: req.method,
+      method: req.method || "GET",
       headers: new Headers(req.headers),
       body:
         req.method !== "GET" && req.method !== "HEAD" && req.body
-          ? JSON.stringify(req.body)
+          ? (typeof req.body === "string" ? req.body : JSON.stringify(req.body))
           : undefined,
     });
 
@@ -50,7 +61,13 @@ export default async function handler(req, res) {
     const handler = await getRequestHandler();
     
     // Call the React Router request handler
-    const response = await handler(request);
+    // React Router v7 handlers expect (request, context) where context has waitUntil
+    const response = await handler(request, {
+      waitUntil: (promise) => {
+        // In serverless, we can't wait for background tasks, but we need to handle the promise
+        promise.catch((err) => console.error("Background task failed:", err));
+      },
+    });
 
     // Convert Response headers to Vercel format
     const headers = {};
@@ -59,14 +76,17 @@ export default async function handler(req, res) {
     });
 
     // Set status and headers
-    res.status(response.status);
+    res.status(response.status || 200);
     Object.entries(headers).forEach(([key, value]) => {
-      res.setHeader(key, value);
+      // Skip setting certain headers that Vercel manages
+      if (key.toLowerCase() !== "content-encoding") {
+        res.setHeader(key, value);
+      }
     });
 
     // Handle response body
     if (response.body) {
-      // For streaming responses, we need to handle them differently
+      // For streaming responses
       if (response.body instanceof ReadableStream) {
         const reader = response.body.getReader();
         const chunks = [];
@@ -75,14 +95,14 @@ export default async function handler(req, res) {
           while (true) {
             const { done, value } = await reader.read();
             if (done) break;
-            chunks.push(value);
+            chunks.push(Buffer.from(value));
           }
 
           const buffer = Buffer.concat(chunks);
           res.send(buffer);
         } catch (streamError) {
           console.error("Error reading response stream:", streamError);
-          res.status(500).json({ error: "Failed to read response" });
+          res.status(500).json({ error: "Failed to read response stream" });
         }
       } else {
         // For non-streaming responses, convert to text
@@ -94,10 +114,21 @@ export default async function handler(req, res) {
     }
   } catch (error) {
     console.error("Error in Vercel handler:", error);
-    res.status(500).json({
-      error: error.message,
-      stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
+    console.error("Error details:", {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
     });
+    
+    // Send error response
+    if (!res.headersSent) {
+      res.status(500).json({
+        error: "Internal Server Error",
+        message: error.message,
+        // Only include stack in development
+        ...(process.env.NODE_ENV === "development" && { stack: error.stack }),
+      });
+    }
   }
 }
 
