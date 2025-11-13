@@ -52,11 +52,25 @@ async function getRequestHandler() {
       }
     }
     
-    // Check if routes is an object with a default or routes property
+    // Check if routes is an object (route manifest) - convert to array
     if (routes && typeof routes === "object" && !Array.isArray(routes)) {
-      console.log("⚠️  build.routes is an object, checking for default/routes property...");
-      routes = routes.default || routes.routes || routes;
-      console.log("✅ Extracted routes from object:", typeof routes, Array.isArray(routes) ? routes.length : "not array");
+      console.log("⚠️  build.routes is a route manifest object, converting to array...");
+      
+      // React Router v7 exports routes as an object/map
+      // We need to convert it to an array for createStaticHandler
+      // The object has route IDs as keys and route definitions as values
+      const routesArray = Object.values(routes);
+      
+      // Filter out routes that don't have a module (they're just placeholders)
+      const validRoutes = routesArray.filter(route => route.module);
+      
+      console.log("✅ Converted route manifest to array:", {
+        totalRoutes: routesArray.length,
+        validRoutes: validRoutes.length,
+        routeIds: routesArray.map(r => r.id).slice(0, 5), // Show first 5 route IDs
+      });
+      
+      routes = validRoutes;
     }
     
     // If routes is still not an array, try routeDiscovery
