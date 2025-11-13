@@ -77,6 +77,14 @@ async function getRequestHandler() {
           // The module should export a default component (per Route Module docs)
           const originalModulePath = route.module;
           
+          // Ensure module path is a string before using string methods
+          if (typeof originalModulePath !== 'string') {
+            console.warn(`⚠️  Route ${route.id || route.path} has non-string module property:`, typeof originalModulePath, originalModulePath);
+            // Skip lazy loading for this route - return as-is
+            // It might already have a Component or element, or module might be an object/function
+            return route;
+          }
+          
           // Build module paths to try - React Router v7 build structure
           // Module paths are typically relative to build/server/
           const pathsToTry = [];
