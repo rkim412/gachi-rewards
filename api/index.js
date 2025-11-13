@@ -162,15 +162,18 @@ async function getRequestHandler() {
       const handleRequest = build.entry.module.default;
       console.log("✅ Found handleRequest in build.entry.module.default");
       
-      // Create a handler that matches React Router's expected signature
+      // React Router v7's handleRequest might create the context internally
+      // Let's try calling it directly with the build object to see if it handles context creation
+      // If that doesn't work, we'll fall back to manually creating the context
       requestHandler = async (request, context = {}) => {
-        // Use createStaticHandler to get the proper context structure
-        // This ensures ServerRouter receives the context in the format it expects
+        let responseStatusCode = 200;
+        const responseHeaders = new Headers();
+        
+        // Try using createStaticHandler to create the proper context
         let reactRouterContext;
         
         try {
-          // Query the static handler to get the proper context
-          // This creates a context with routing state (location, matches, loaderData, etc.)
+          // Query the static handler to get routing state
           const queryContext = await staticHandler.query(request);
           
           // If query returns a Response (redirect, error, etc.), return it directly
@@ -178,45 +181,51 @@ async function getRequestHandler() {
             return queryContext;
           }
           
-          // The context from staticHandler.query doesn't include routes
-          // ServerRouter needs routes in the context, so we need to add it
-          // ServerRouter may also expect routes in context.build.routes
+          // Create context with routes - ServerRouter needs routes accessible
+          // Try multiple possible access patterns that ServerRouter might use
           reactRouterContext = {
-            ...queryContext, // Include all the routing state from query (location, matches, loaderData, etc.)
-            routes: routes,  // Add the routes array that ServerRouter expects at top level
+            ...queryContext, // Routing state from query
+            routes: routes,  // Top-level routes
             build: {
-              // Include build info that ServerRouter might need
               assets: build.assets,
               entry: build.entry,
-              routes: routes,  // Also include routes in build object (ServerRouter might check here)
+              routes: routes,  // Routes in build object
               publicPath: build.publicPath || "/",
               assetsBuildDirectory: build.assetsBuildDirectory || "build/client",
             },
+            // Also try adding staticHandlerContext in case ServerRouter looks there
+            staticHandlerContext: {
+              ...queryContext,
+              routes: routes,
+            },
           };
           
-          console.log("✅ Created context from staticHandler.query with routes:", {
+          console.log("✅ Created context with routes:", {
             hasContext: !!reactRouterContext,
             hasRoutes: !!(reactRouterContext && reactRouterContext.routes),
+            hasBuildRoutes: !!(reactRouterContext && reactRouterContext.build && reactRouterContext.build.routes),
+            hasStaticHandlerRoutes: !!(reactRouterContext && reactRouterContext.staticHandlerContext && reactRouterContext.staticHandlerContext.routes),
             contextKeys: reactRouterContext ? Object.keys(reactRouterContext) : [],
           });
         } catch (queryError) {
           console.error("❌ Error querying static handler:", queryError);
-          // Fallback to manual context creation if query fails
+          // Fallback context
           reactRouterContext = {
             routes: routes,
-            staticHandlerContext: {
-              url: request.url,
-              matches: [],
-              loaderData: {},
-              actionData: {},
-              errors: null,
-            },
             build: {
               assets: build.assets,
               entry: build.entry,
               routes: routes,
               publicPath: build.publicPath || "/",
               assetsBuildDirectory: build.assetsBuildDirectory || "build/client",
+            },
+            staticHandlerContext: {
+              url: request.url,
+              matches: [],
+              loaderData: {},
+              actionData: {},
+              errors: null,
+              routes: routes,
             },
           };
           console.warn("⚠️  Using fallback context structure");
@@ -227,9 +236,6 @@ async function getRequestHandler() {
           console.error("❌ reactRouterContext is undefined after query");
           return new Response("Internal Server Error: Invalid router context", { status: 500 });
         }
-        
-        let responseStatusCode = 200;
-        const responseHeaders = new Headers();
         
         try {
           const response = await handleRequest(
@@ -244,6 +250,8 @@ async function getRequestHandler() {
           console.error("Context structure:", {
             hasContext: !!reactRouterContext,
             hasRoutes: !!(reactRouterContext && reactRouterContext.routes),
+            hasBuild: !!(reactRouterContext && reactRouterContext.build),
+            hasBuildRoutes: !!(reactRouterContext && reactRouterContext.build && reactRouterContext.build.routes),
             routesType: typeof reactRouterContext?.routes,
             routesIsArray: Array.isArray(reactRouterContext?.routes),
             contextType: typeof reactRouterContext,
