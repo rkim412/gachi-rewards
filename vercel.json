@@ -7,7 +7,7 @@
   "regions": ["iad1"],
   "rewrites": [
     {
-      "source": "/((?!assets|_build|favicon\\.ico|.*\\.(css|js|map|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot)).*)",
+      "source": "/(.*)",
       "destination": "/api/index"
     }
   ],
