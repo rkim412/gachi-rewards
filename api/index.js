@@ -148,6 +148,12 @@ async function getRequestHandler() {
     try {
       staticHandler = createStaticHandler(routes);
       console.log("✅ Created static handler with routes:", routes.length);
+      console.log("✅ Static handler dataRoutes:", {
+        hasDataRoutes: !!staticHandler.dataRoutes,
+        dataRoutesType: typeof staticHandler.dataRoutes,
+        dataRoutesIsArray: Array.isArray(staticHandler.dataRoutes),
+        dataRoutesLength: staticHandler.dataRoutes?.length || 0,
+      });
     } catch (handlerError) {
       console.error("❌ Failed to create static handler:", handlerError);
       throw handlerError;
@@ -182,40 +188,51 @@ async function getRequestHandler() {
           }
           
           // Create context with routes - ServerRouter needs routes accessible
-          // Try multiple possible access patterns that ServerRouter might use
+          // According to React Router v7 docs, use handler.dataRoutes instead of raw routes
+          // createStaticRouter(handler.dataRoutes, context) shows dataRoutes is the correct format
+          const dataRoutes = staticHandler.dataRoutes || routes;
+          
           reactRouterContext = {
             ...queryContext, // Routing state from query
-            routes: routes,  // Top-level routes
+            routes: dataRoutes,  // Use dataRoutes (processed routes) instead of raw routes
+            dataRoutes: dataRoutes,  // Also add as dataRoutes property explicitly
             build: {
               assets: build.assets,
               entry: build.entry,
-              routes: routes,  // Routes in build object
+              routes: dataRoutes,  // Use dataRoutes in build object
+              dataRoutes: dataRoutes,  // Add dataRoutes to build
               publicPath: build.publicPath || "/",
               assetsBuildDirectory: build.assetsBuildDirectory || "build/client",
             },
             // Also try adding staticHandlerContext in case ServerRouter looks there
             staticHandlerContext: {
               ...queryContext,
-              routes: routes,
+              routes: dataRoutes,
+              dataRoutes: dataRoutes,
             },
           };
           
-          console.log("✅ Created context with routes:", {
+          console.log("✅ Created context with dataRoutes:", {
             hasContext: !!reactRouterContext,
             hasRoutes: !!(reactRouterContext && reactRouterContext.routes),
+            hasDataRoutes: !!(reactRouterContext && reactRouterContext.dataRoutes),
             hasBuildRoutes: !!(reactRouterContext && reactRouterContext.build && reactRouterContext.build.routes),
+            hasBuildDataRoutes: !!(reactRouterContext && reactRouterContext.build && reactRouterContext.build.dataRoutes),
             hasStaticHandlerRoutes: !!(reactRouterContext && reactRouterContext.staticHandlerContext && reactRouterContext.staticHandlerContext.routes),
             contextKeys: reactRouterContext ? Object.keys(reactRouterContext) : [],
           });
         } catch (queryError) {
           console.error("❌ Error querying static handler:", queryError);
-          // Fallback context
+          // Fallback context - use dataRoutes if available
+          const dataRoutes = staticHandler?.dataRoutes || routes;
           reactRouterContext = {
-            routes: routes,
+            routes: dataRoutes,
+            dataRoutes: dataRoutes,
             build: {
               assets: build.assets,
               entry: build.entry,
-              routes: routes,
+              routes: dataRoutes,
+              dataRoutes: dataRoutes,
               publicPath: build.publicPath || "/",
               assetsBuildDirectory: build.assetsBuildDirectory || "build/client",
             },
@@ -225,7 +242,8 @@ async function getRequestHandler() {
               loaderData: {},
               actionData: {},
               errors: null,
-              routes: routes,
+              routes: dataRoutes,
+              dataRoutes: dataRoutes,
             },
           };
           console.warn("⚠️  Using fallback context structure");
