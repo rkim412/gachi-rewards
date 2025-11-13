@@ -17,27 +17,71 @@ async function getRequestHandler() {
     // Import the server build - React Router v7 exports build config, not a handler directly
     const build = await import("../build/server/index.js");
     
-    // React Router v7's build exports config with an 'entry' field pointing to the server entry
+    // React Router v7's build exports config with an 'entry' field
+    // The entry might be a string path or an object with module/file properties
+    let entryPath = null;
+    
     if (build.entry) {
-      // Import the actual server entry file
-      const serverEntry = await import(`../build/server/${build.entry}`);
-      
-      // The server entry should export a default handler function
-      if (typeof serverEntry.default === "function") {
-        requestHandler = serverEntry.default;
-      } else if (serverEntry.handler) {
-        requestHandler = serverEntry.handler;
+      // Handle different entry formats
+      if (typeof build.entry === "string") {
+        entryPath = build.entry;
+      } else if (build.entry.module) {
+        entryPath = build.entry.module;
+      } else if (build.entry.file) {
+        entryPath = build.entry.file;
       } else {
-        throw new Error("Handler not found in server entry. Available exports: " + Object.keys(serverEntry).join(", "));
+        // Log the entry structure for debugging
+        console.log("build.entry structure:", JSON.stringify(build.entry, null, 2));
       }
-    } else if (typeof build.default === "function") {
-      // Fallback: try default export
-      requestHandler = build.default;
-    } else if (build.handler) {
-      // Fallback: try handler export
-      requestHandler = build.handler;
-    } else {
-      throw new Error("React Router handler not found in build. Available exports: " + Object.keys(build).join(", "));
+    }
+    
+    // Try to import the server entry if we have a path
+    if (entryPath) {
+      // Ensure the path is relative and doesn't start with ./
+      const normalizedPath = entryPath.startsWith("./") 
+        ? entryPath 
+        : `./${entryPath}`;
+      
+      try {
+        const serverEntry = await import(`../build/server/${normalizedPath}`);
+        
+        // The server entry should export a default handler function
+        if (typeof serverEntry.default === "function") {
+          requestHandler = serverEntry.default;
+        } else if (serverEntry.handler) {
+          requestHandler = serverEntry.handler;
+        } else {
+          throw new Error("Handler not found in server entry. Available exports: " + Object.keys(serverEntry).join(", "));
+        }
+      } catch (importError) {
+        console.error("Failed to import server entry:", importError.message);
+        // Fall through to try other methods
+      }
+    }
+    
+    // Fallback: try to use @react-router/serve's createRequestHandler
+    if (!requestHandler) {
+      try {
+        const { createRequestHandler } = await import("@react-router/serve");
+        requestHandler = createRequestHandler({
+          build,
+          mode: process.env.NODE_ENV || "production",
+        });
+      } catch (serveError) {
+        console.error("Failed to use @react-router/serve:", serveError.message);
+        // Continue to other fallbacks
+      }
+    }
+    
+    // Final fallbacks
+    if (!requestHandler) {
+      if (typeof build.default === "function") {
+        requestHandler = build.default;
+      } else if (build.handler) {
+        requestHandler = build.handler;
+      } else {
+        throw new Error("React Router handler not found in build. Available exports: " + Object.keys(build).join(", ") + ". Entry: " + JSON.stringify(build.entry));
+      }
     }
     
     return requestHandler;
