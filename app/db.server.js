@@ -1,20 +1,28 @@
-import { PrismaClient } from "@prisma/client/edge";
+// Use regular PrismaClient (not edge client)
+// Edge client is only needed for edge runtime environments
+import { PrismaClient } from "@prisma/client";
 import { withAccelerate } from "@prisma/extension-accelerate";
 
-// Determine if we should use Accelerate (only for production PostgreSQL)
+// Determine if we should use Accelerate (only for production PostgreSQL with prisma:// URL)
+// Note: Vercel Postgres uses postgres:// URL, not prisma://, so Accelerate is optional
 const useAccelerate = 
   process.env.NODE_ENV === "production" && 
-  process.env.DATABASE_URL?.includes("postgres");
+  process.env.DATABASE_URL?.startsWith("prisma://");
 
 // Create Prisma client with or without Accelerate
+// Note: We use regular PrismaClient (not edge) for local SQLite compatibility
 const createPrismaClient = () => {
-  if (useAccelerate) {
-    return new PrismaClient().$extends(withAccelerate());
-  }
-  // For local SQLite, use regular Prisma Client (no Accelerate)
-  return new PrismaClient({
+  const baseClient = new PrismaClient({
     log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
   });
+  
+  if (useAccelerate) {
+    // For production PostgreSQL with Accelerate, extend with Accelerate
+    return baseClient.$extends(withAccelerate());
+  }
+  
+  // For local SQLite, return regular client (no Accelerate)
+  return baseClient;
 };
 
 // Reuse client in development to avoid too many connections

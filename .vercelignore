@@ -1,10 +1,25 @@
-# Ignore local database files
+# Ignore local database files (Vercel uses PostgreSQL)
 prisma/dev.sqlite
 prisma/dev.sqlite-journal
 *.db
 *.db-journal
 
-# Ignore local env files (Vercel uses its own)
+# Ignore local env files (Vercel uses its own environment variables)
+.env
 .env.local
 .env.development.local
+.env.production.local
+
+# Ignore development files
+.shopify/
+node_modules/.cache/
+
+# Ignore test files (if any)
+test/
+tests/
+__tests__/
+*.test.js
+*.test.ts
+*.spec.js
+*.spec.ts
 

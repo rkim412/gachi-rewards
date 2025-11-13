@@ -27,18 +27,39 @@ function ReferralThankYou() {
       setLoading(true);
       setError(null);
 
-      // Get order info from Order Confirmation API
-      const order = await query("purchase");
-      const customer = order?.customer;
-
-      if (!customer?.id) {
-        setError("Customer information not available");
-        return;
+      // Try to get order info from Order Confirmation API (may not be available)
+      let order = null;
+      let customer = null;
+      
+      try {
+        order = await query("purchase");
+        customer = order?.customer;
+      } catch (queryError) {
+        // Purchase API may not be available - that's okay, we'll proceed without it
+        console.warn("Could not get purchase data:", queryError);
       }
 
-      // Use App Proxy URL (secure, no API keys exposed)
-      const apiUrl = query("settings.api_url") || "/apps/gachi-rewards/api/generate";
-      const proxyUrl = `${apiUrl}?orderId=${encodeURIComponent(order.id)}&customerId=${encodeURIComponent(customer.id)}&customerEmail=${encodeURIComponent(customer.email || "")}`;
+      // Build query parameters - handle both logged-in and guest customers
+      const params = new URLSearchParams();
+      if (order?.id) params.append("orderId", order.id);
+      if (customer?.id) params.append("customerId", customer.id);
+      if (customer?.email) params.append("customerEmail", customer.email);
+      
+      // Get API URL from settings (handle errors gracefully)
+      let apiUrl = "/apps/gachi-rewards/api/generate";
+      try {
+        const settingsUrl = query("settings.api_url");
+        if (settingsUrl) {
+          apiUrl = settingsUrl;
+        }
+      } catch (settingsError) {
+        console.warn("Could not get settings.api_url, using default:", settingsError);
+      }
+
+      // Make API call - App Proxy will add shop, timestamp, signature automatically
+      const proxyUrl = `${apiUrl}?${params.toString()}`;
+      
+      console.log("Fetching referral link from:", proxyUrl);
       
       const response = await fetch(proxyUrl, {
         method: "GET",
@@ -47,16 +68,23 @@ function ReferralThankYou() {
         },
       });
 
-      const data = await response.json();
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("API error:", response.status, errorText);
+        throw new Error(`API returned ${response.status}: ${errorText}`);
+      }
 
-      if (data.success) {
+      const data = await response.json();
+      console.log("Referral API response:", data);
+
+      if (data.success && data.referralLink) {
         setReferralLink(data.referralLink);
       } else {
         setError(data.error || "Failed to generate referral link");
       }
     } catch (err) {
       console.error("Error fetching referral link:", err);
-      setError("Failed to load referral link");
+      setError(`Failed to load referral link: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -76,17 +104,23 @@ function ReferralThankYou() {
 
   if (loading) {
     return (
-      <BlockStack>
+      <BlockStack spacing="tight">
         <Text>Generating your referral link...</Text>
       </BlockStack>
     );
   }
 
   if (error) {
+    // Show error but don't block the page - just log it
+    console.error("Referral link error:", error);
+    // Return null to hide the extension if there's an error
+    // Or show a non-critical message
     return (
-      <Banner status="critical">
-        <Text>{error}</Text>
-      </Banner>
+      <BlockStack spacing="tight">
+        <Text size="small" appearance="subdued">
+          Referral link will be available soon.
+        </Text>
+      </BlockStack>
     );
   }
 

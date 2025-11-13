@@ -1,4 +1,8 @@
 {
-  "buildCommand": "npm run build && npm run setup:prod"
+  "buildCommand": "npm run build && npm run setup:prod",
+  "installCommand": "npm install",
+  "framework": null,
+  "outputDirectory": "build/client",
+  "devCommand": null,
+  "regions": ["iad1"]
 }
-

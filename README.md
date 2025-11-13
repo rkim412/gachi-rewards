@@ -42,8 +42,14 @@ Quick steps:
 - **[QUICK-START.md](./QUICK-START.md)** - **🚀 5-minute quick start: Get running locally and testing right away!** ⭐
 - **[LOCALHOST-URL-SETUP.md](./LOCALHOST-URL-SETUP.md)** - **🔗 Complete guide to setting up localhost and tunnel URLs**
 - **[SETUP-LOCAL.md](./SETUP-LOCAL.md)** - Complete guide for local development with SQLite/PostgreSQL
-- **[DEPLOY-TO-SHOPIFY-TEST.md](./DEPLOY-TO-SHOPIFY-TEST.md)** - Deploy and test in Shopify
+- **[DEPLOY-AND-TEST.md](./DEPLOY-AND-TEST.md)** - Deploy and test in Shopify
 - **[SETUP-PRODUCTION.md](./SETUP-PRODUCTION.md)** - Complete guide for Vercel production deployment
+
+## Testing Guides
+
+- **[TEST-REFERRAL-LOOP.md](./TEST-REFERRAL-LOOP.md)** - **🧪 Complete guide to testing the referral loop end-to-end** ⭐
+- **[TESTING-QUICK-REFERENCE.md](./TESTING-QUICK-REFERENCE.md)** - Quick reference for common testing scenarios
+- **[FIX-DATABASE-ERRORS.md](./FIX-DATABASE-ERRORS.md)** - Troubleshooting database and import errors
 
 ## Deployment
 

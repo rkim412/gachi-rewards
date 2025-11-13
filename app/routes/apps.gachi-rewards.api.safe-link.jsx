@@ -1,4 +1,3 @@
-import { json } from "react-router";
 import { verifyAppProxyRequest } from "../services/proxy.server.js";
 import { createSafeLink } from "../services/referral.server.js";
 
@@ -16,9 +15,9 @@ export const loader = async ({ request }) => {
     const { shop, isValid } = await verifyAppProxyRequest(request);
     
     if (!isValid) {
-      return json(
-        { success: false, error: "Invalid request signature" },
-        { status: 401 }
+      return new Response(
+        JSON.stringify({ success: false, error: "Invalid request signature" }),
+        { status: 401, headers: { "Content-Type": "application/json" } }
       );
     }
 
@@ -27,29 +26,32 @@ export const loader = async ({ request }) => {
     const referralCode = url.searchParams.get("referralCode");
 
     if (!referralCode || !shop) {
-      return json(
-        { success: false, error: "Missing referralCode or shop" },
-        { status: 400 }
+      return new Response(
+        JSON.stringify({ success: false, error: "Missing referralCode or shop" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
 
     // Create safe link
     const safeLink = await createSafeLink({ referralCode, shop });
 
-    return json({
-      success: true,
-      oneTimeCode: safeLink.oneTimeCode,
-      discountCode: safeLink.discountCode,
-      expiresAt: safeLink.expiresAt,
-    });
+    return new Response(
+      JSON.stringify({
+        success: true,
+        oneTimeCode: safeLink.oneTimeCode,
+        discountCode: safeLink.discountCode,
+        expiresAt: safeLink.expiresAt,
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    );
   } catch (error) {
     console.error("Error creating safe link:", error);
-    return json(
-      {
+    return new Response(
+      JSON.stringify({
         success: false,
         error: error.message || "Failed to create safe link",
-      },
-      { status: 500 }
+      }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
 };

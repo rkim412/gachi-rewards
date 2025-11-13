@@ -17,6 +17,7 @@ export async function verifyAppProxyRequest(request) {
   const pathPrefix = url.searchParams.get("path_prefix");
 
   if (!shop || !timestamp || !signature) {
+    console.error("Missing App Proxy parameters:", { shop: !!shop, timestamp: !!timestamp, signature: !!signature });
     return { shop: null, loggedInCustomerId: null, isValid: false };
   }
 
@@ -67,6 +68,24 @@ export async function verifyAppProxyRequest(request) {
   const currentTime = Math.floor(Date.now() / 1000);
   const timeDiff = Math.abs(currentTime - requestTime);
   const isRecent = timeDiff < 3600; // 1 hour
+
+  if (!isValid) {
+    console.error("App Proxy signature mismatch", {
+      shop,
+      expectedHmac: hmac.substring(0, 10) + "...",
+      receivedSignature: signature.substring(0, 10) + "...",
+      message: sortedParams.substring(0, 100) + "...",
+    });
+  }
+
+  if (!isRecent) {
+    console.error("App Proxy timestamp too old", {
+      shop,
+      requestTime,
+      currentTime,
+      timeDiff,
+    });
+  }
 
   return {
     shop,
