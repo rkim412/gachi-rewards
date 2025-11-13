@@ -6,9 +6,9 @@
  * so installGlobals is not needed. We skip it to avoid CommonJS import issues.
  */
 
-// Import createStaticHandler from react-router
-// In React Router v7, this should be available from the react-router package
-import { createStaticHandler } from "react-router";
+// Import createStaticHandler and createStaticRouter from react-router
+// In React Router v7, these should be available from the react-router package
+import { createStaticHandler, createStaticRouter } from "react-router";
 
 // Lazy load the build and create request handler
 let requestHandler;
@@ -187,13 +187,17 @@ async function getRequestHandler() {
             return queryContext;
           }
           
-          // Create context with routes - ServerRouter needs routes accessible
-          // According to React Router v7 docs, use handler.dataRoutes instead of raw routes
-          // createStaticRouter(handler.dataRoutes, context) shows dataRoutes is the correct format
+          // Create context with routes - Following React Router v7 docs pattern
+          // Use handler.dataRoutes and createStaticRouter as shown in docs
           const dataRoutes = staticHandler.dataRoutes || routes;
+          
+          // Create static router using createStaticRouter as per React Router v7 docs
+          // createStaticRouter(handler.dataRoutes, context)
+          const router = createStaticRouter(dataRoutes, queryContext);
           
           reactRouterContext = {
             ...queryContext, // Routing state from query
+            router: router,  // Add the router for StaticRouterProvider
             routes: dataRoutes,  // Use dataRoutes (processed routes) instead of raw routes
             dataRoutes: dataRoutes,  // Also add as dataRoutes property explicitly
             build: {
@@ -203,12 +207,6 @@ async function getRequestHandler() {
               dataRoutes: dataRoutes,  // Add dataRoutes to build
               publicPath: build.publicPath || "/",
               assetsBuildDirectory: build.assetsBuildDirectory || "build/client",
-            },
-            // Also try adding staticHandlerContext in case ServerRouter looks there
-            staticHandlerContext: {
-              ...queryContext,
-              routes: dataRoutes,
-              dataRoutes: dataRoutes,
             },
           };
           
