@@ -17,62 +17,14 @@ async function getRequestHandler() {
     // Import the server build - React Router v7 exports build config
     const build = await import("../build/server/index.js");
     
-    // React Router v7's build structure: entry.module contains config, not file path
-    // We need to find the actual server entry file or construct a handler from routes
+    // React Router v7's build structure: entry.module is a Module object with default export
+    // The error logs show: entry.module.default is [AsyncFunction: handleRequest]
+    // So we can use build.entry.module.default directly!
     
-    // Try to find the server entry file by checking build.entry for file references
-    let serverEntryFile = null;
-    
-    // Check if entry has a file property or if we can infer it
-    if (build.entry?.file) {
-      serverEntryFile = build.entry.file;
-    } else if (build.entry?.module?.file) {
-      serverEntryFile = build.entry.module.file;
-    }
-    
-    // Try common server entry file paths
-    const possibleEntryPaths = serverEntryFile 
-      ? [serverEntryFile]
-      : [
-          "entry.server.js",
-          "entry.server.mjs", 
-          "entry.server.jsx",
-          "entry.server.ts",
-          "entry.server.tsx",
-        ];
-    
-    let serverEntry = null;
-    for (const path of possibleEntryPaths) {
-      try {
-        // Try different path formats
-        const pathsToTry = [
-          `../build/server/${path}`,
-          `../build/server/${path.replace(/\.(js|mjs|jsx|ts|tsx)$/, '')}.js`,
-          `../build/server/${path.replace(/\.(js|mjs|jsx|ts|tsx)$/, '')}.mjs`,
-        ];
-        
-        for (const importPath of pathsToTry) {
-          try {
-            const attempt = await import(importPath);
-            if (typeof attempt.default === "function") {
-              serverEntry = attempt;
-              console.log(`✅ Found server entry at: ${importPath}`);
-              break;
-            }
-          } catch (e) {
-            // Continue to next path
-          }
-        }
-        
-        if (serverEntry) break;
-      } catch (e) {
-        // Continue to next path
-      }
-    }
-    
-    // If we found the server entry, use it
-    if (serverEntry && typeof serverEntry.default === "function") {
-      const handleRequest = serverEntry.default;
+    // Check if build.entry.module exists and has a default function
+    if (build.entry?.module?.default && typeof build.entry.module.default === "function") {
+      const handleRequest = build.entry.module.default;
+      console.log("✅ Found handleRequest in build.entry.module.default");
       
       // Create a handler that matches React Router's expected signature
       requestHandler = async (request, context = {}) => {
