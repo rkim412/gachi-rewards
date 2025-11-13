@@ -17,74 +17,93 @@ async function getRequestHandler() {
     // Import the server build - React Router v7 exports build config, not a handler directly
     const build = await import("../build/server/index.js");
     
-    // React Router v7's build exports config with an 'entry' field
-    // The entry might be a string path or an object with module/file properties
-    let entryPath = null;
+    // React Router v7's build structure: entry.module contains config, not file path
+    // The actual server handler needs to be constructed from the build
+    // Try to import the entry server file directly
+    let serverEntry = null;
     
-    if (build.entry) {
-      // Handle different entry formats
-      if (typeof build.entry === "string") {
-        entryPath = build.entry;
-      } else if (build.entry.module) {
-        entryPath = build.entry.module;
-      } else if (build.entry.file) {
-        entryPath = build.entry.file;
-      } else {
-        // Log the entry structure for debugging
-        console.log("build.entry structure:", JSON.stringify(build.entry, null, 2));
-      }
-    }
+    // Try common server entry file paths
+    const possibleEntryPaths = [
+      "entry.server.js",
+      "entry.server.mjs",
+      "entry.server.jsx",
+      "index.js",
+      "index.mjs",
+    ];
     
-    // Try to import the server entry if we have a path
-    if (entryPath && typeof entryPath === "string") {
-      // Ensure the path is relative and doesn't start with ./
-      const normalizedPath = entryPath.startsWith("./") 
-        ? entryPath 
-        : `./${entryPath}`;
-      
+    for (const path of possibleEntryPaths) {
       try {
-        const serverEntry = await import(`../build/server/${normalizedPath}`);
-        
-        // The server entry should export a default handler function
-        if (typeof serverEntry.default === "function") {
-          requestHandler = serverEntry.default;
-        } else if (serverEntry.handler) {
-          requestHandler = serverEntry.handler;
-        } else {
-          throw new Error("Handler not found in server entry. Available exports: " + Object.keys(serverEntry).join(", "));
+        const attempt = await import(`../build/server/${path}`);
+        if (typeof attempt.default === "function") {
+          serverEntry = attempt;
+          console.log(`✅ Found server entry at: ${path}`);
+          break;
         }
-      } catch (importError) {
-        console.error("Failed to import server entry:", importError.message);
-        // Fall through to try other methods
-      }
-    } else if (entryPath) {
-      // entryPath exists but is not a string - log it for debugging
-      console.log("entryPath is not a string, type:", typeof entryPath, "value:", JSON.stringify(entryPath));
-    }
-    
-    // Fallback: try to use @react-router/serve's createRequestHandler
-    if (!requestHandler) {
-      try {
-        const { createRequestHandler } = await import("@react-router/serve");
-        requestHandler = createRequestHandler({
-          build,
-          mode: process.env.NODE_ENV || "production",
-        });
-      } catch (serveError) {
-        console.error("Failed to use @react-router/serve:", serveError.message);
-        // Continue to other fallbacks
+      } catch (e) {
+        // Continue to next path
       }
     }
     
-    // Final fallbacks
-    if (!requestHandler) {
-      if (typeof build.default === "function") {
-        requestHandler = build.default;
-      } else if (build.handler) {
-        requestHandler = build.handler;
-      } else {
-        throw new Error("React Router handler not found in build. Available exports: " + Object.keys(build).join(", ") + ". Entry: " + JSON.stringify(build.entry));
+    // If we found the server entry, use it
+    if (serverEntry) {
+      if (typeof serverEntry.default === "function") {
+        // The entry.server.jsx exports a handleRequest function
+        // We need to wrap it to create a full request handler
+        const handleRequest = serverEntry.default;
+        
+        // Create a handler that matches React Router's expected signature
+        requestHandler = async (request, context = {}) => {
+          // React Router v7 expects a context with reactRouterContext
+          // We need to create a minimal context
+          const reactRouterContext = {
+            staticHandlerContext: {
+              url: request.url,
+              matches: [],
+            },
+          };
+          
+          let responseStatusCode = 200;
+          const responseHeaders = new Headers();
+          
+          try {
+            const response = await handleRequest(
+              request,
+              responseStatusCode,
+              responseHeaders,
+              reactRouterContext
+            );
+            return response;
+          } catch (error) {
+            console.error("Error in handleRequest:", error);
+            return new Response("Internal Server Error", { status: 500 });
+          }
+        };
       }
+    }
+    
+    // If we still don't have a handler, try to use the routes directly
+    if (!requestHandler && build.routes) {
+      console.log("Attempting to create handler from routes...");
+      // This is a fallback - React Router v7 should have a better way
+      // For now, we'll throw a more helpful error
+      throw new Error(
+        "Could not find server handler. Build structure: " +
+        JSON.stringify({
+          hasRoutes: !!build.routes,
+          entry: build.entry,
+          availableExports: Object.keys(build),
+        }, null, 2)
+      );
+    }
+    
+    // Final check
+    if (!requestHandler) {
+      throw new Error(
+        "React Router handler not found. Available exports: " +
+        Object.keys(build).join(", ") +
+        ". Entry: " +
+        JSON.stringify(build.entry)
+      );
     }
     
     return requestHandler;
