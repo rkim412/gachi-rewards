@@ -1,13 +1,10 @@
 /**
  * Vercel Serverless Function Handler for React Router v7
  * This handles all requests and routes them through React Router
+ * 
+ * Note: Node.js 20+ (used by Vercel) has native fetch, Request, Response support,
+ * so installGlobals is not needed. We skip it to avoid CommonJS import issues.
  */
-
-import pkg from '@react-router/node';
-const { installGlobals } = pkg;
-
-// Install Node.js globals (fetch, Request, Response, etc.)
-installGlobals();
 
 // Lazy load the build and create request handler
 let requestHandler;
