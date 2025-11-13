@@ -70,145 +70,200 @@ async function getRequestHandler() {
           return route;
         }
         
-        // If route has a module property, convert it to lazy loading
-        // Route modules export a default component per React Router v7 docs
+        // If route has a module property, handle it
+        // React Router v7 build may provide module as:
+        // 1. A Module object (already loaded) - extract exports directly
+        // 2. A string path - use lazy loading
         if (route.module) {
-          // Create a lazy loader for the module
-          // The module should export a default component (per Route Module docs)
-          const originalModulePath = route.module;
+          const moduleValue = route.module;
           
-          // Ensure module path is a string before using string methods
-          if (typeof originalModulePath !== 'string') {
-            console.warn(`⚠️  Route ${route.id || route.path} has non-string module property:`, typeof originalModulePath, originalModulePath);
-            // Skip lazy loading for this route - return as-is
-            // It might already have a Component or element, or module might be an object/function
-            return route;
-          }
-          
-          // Build module paths to try - React Router v7 build structure
-          // Module paths are typically relative to build/server/
-          const pathsToTry = [];
-          
-          // If it's already an absolute path or URL, use it directly
-          if (originalModulePath.startsWith('/') || originalModulePath.startsWith('http')) {
-            pathsToTry.push(originalModulePath);
-          } else {
-            // Try different relative path resolutions
-            // 1. Relative to build/server (most common)
-            if (originalModulePath.startsWith('./')) {
-              pathsToTry.push(`../build/server/${originalModulePath.slice(2)}`);
-            } else if (originalModulePath.startsWith('../')) {
-              pathsToTry.push(`../build/server/${originalModulePath}`);
-            } else {
-              // No leading ./ or ../, assume it's relative to build/server
-              pathsToTry.push(`../build/server/${originalModulePath}`);
-            }
-            
-            // 2. Try with .js extension if not present
-            if (!originalModulePath.endsWith('.js') && !originalModulePath.endsWith('.jsx') && !originalModulePath.endsWith('.ts') && !originalModulePath.endsWith('.tsx')) {
-              const withJs = pathsToTry[pathsToTry.length - 1] + '.js';
-              pathsToTry.push(withJs);
-            }
-            
-            // 3. Try original path as-is (might work in some cases)
-            pathsToTry.push(originalModulePath);
-          }
-          
-          return {
-            ...route,
-            lazy: async () => {
-              let module;
-              let lastError;
+          // Case 1: Module is already loaded (Module object)
+          // React Router v7 build has already loaded the modules
+          if (typeof moduleValue === 'object' && moduleValue !== null && !Array.isArray(moduleValue)) {
+            // Check if it looks like a Module object (has exports like default, loader, etc.)
+            if ('default' in moduleValue || 'loader' in moduleValue || 'action' in moduleValue) {
+              // Extract all route module exports directly from the Module object
+              const routeModuleExports = {};
               
-              // Try each path until one works
-              for (const path of pathsToTry) {
-                try {
-                  module = await import(path);
-                  console.log(`✅ Successfully loaded module ${originalModulePath} from ${path}`);
-                  break;
-                } catch (importError) {
-                  lastError = importError;
-                  // Continue to next path
-                  continue;
-                }
+              // Extract Component (default export)
+              if (moduleValue.default) {
+                routeModuleExports.Component = moduleValue.default;
               }
-              
-              if (!module) {
-                console.error(`❌ Failed to load module ${originalModulePath} from all paths:`, pathsToTry);
-                console.error(`   Last error:`, lastError?.message);
-                // Return a fallback component that renders nothing
-                // This prevents the "no element" warning but won't render anything
-                return {
-                  Component: () => {
-                    console.warn(`Route ${route.id || route.path} component failed to load`);
-                    return null;
-                  },
-                };
-              }
-              
-              // Route modules can export multiple things per React Router v7 Route Module docs:
-              // - default: Component
-              // - loader: data loading function
-              // - action: data mutation function
-              // - ErrorBoundary: error handling component
-              // - headers: HTTP headers function
-              // - meta: meta tags function
-              // - and more...
-              // We need to extract ALL exports, not just the Component
-              
-              const Component = module.default;
-              
-              if (!Component) {
-                console.error(`❌ Module ${originalModulePath} does not have a default export`);
-                return {
-                  Component: () => {
-                    console.warn(`Route ${route.id || route.path} has no default export`);
-                    return null;
-                  },
-                };
-              }
-              
-              // Return all route module exports for createStaticHandler
-              // This follows React Router v7 best practices for Route Modules
-              const routeModuleExports = {
-                Component: Component,
-              };
               
               // Extract other route module exports if they exist
-              if (module.loader) {
-                routeModuleExports.loader = module.loader;
+              if (moduleValue.loader) {
+                routeModuleExports.loader = moduleValue.loader;
               }
-              if (module.action) {
-                routeModuleExports.action = module.action;
+              if (moduleValue.action) {
+                routeModuleExports.action = moduleValue.action;
               }
-              if (module.ErrorBoundary) {
-                routeModuleExports.ErrorBoundary = module.ErrorBoundary;
+              if (moduleValue.ErrorBoundary) {
+                routeModuleExports.ErrorBoundary = moduleValue.ErrorBoundary;
               }
-              if (module.headers) {
-                routeModuleExports.headers = module.headers;
+              if (moduleValue.headers) {
+                routeModuleExports.headers = moduleValue.headers;
               }
-              if (module.meta) {
-                routeModuleExports.meta = module.meta;
+              if (moduleValue.meta) {
+                routeModuleExports.meta = moduleValue.meta;
               }
-              if (module.clientLoader) {
-                routeModuleExports.clientLoader = module.clientLoader;
+              if (moduleValue.clientLoader) {
+                routeModuleExports.clientLoader = moduleValue.clientLoader;
               }
-              if (module.clientAction) {
-                routeModuleExports.clientAction = module.clientAction;
+              if (moduleValue.clientAction) {
+                routeModuleExports.clientAction = moduleValue.clientAction;
               }
-              if (module.HydrateFallback) {
-                routeModuleExports.HydrateFallback = module.HydrateFallback;
+              if (moduleValue.HydrateFallback) {
+                routeModuleExports.HydrateFallback = moduleValue.HydrateFallback;
               }
-              if (module.handle) {
-                routeModuleExports.handle = module.handle;
+              if (moduleValue.handle) {
+                routeModuleExports.handle = moduleValue.handle;
               }
-              if (module.shouldRevalidate) {
-                routeModuleExports.shouldRevalidate = module.shouldRevalidate;
+              if (moduleValue.shouldRevalidate) {
+                routeModuleExports.shouldRevalidate = moduleValue.shouldRevalidate;
               }
               
-              return routeModuleExports;
-            },
-          };
+              // Merge route module exports into the route
+              // This fixes the "no element" warning by ensuring Component is present
+              return {
+                ...route,
+                ...routeModuleExports,
+              };
+            }
+          }
+          
+          // Case 2: Module is a string path - use lazy loading
+          if (typeof moduleValue === 'string') {
+            const originalModulePath = moduleValue;
+            
+            // Build module paths to try - React Router v7 build structure
+            // Module paths are typically relative to build/server/
+            const pathsToTry = [];
+            
+            // If it's already an absolute path or URL, use it directly
+            if (originalModulePath.startsWith('/') || originalModulePath.startsWith('http')) {
+              pathsToTry.push(originalModulePath);
+            } else {
+              // Try different relative path resolutions
+              // 1. Relative to build/server (most common)
+              if (originalModulePath.startsWith('./')) {
+                pathsToTry.push(`../build/server/${originalModulePath.slice(2)}`);
+              } else if (originalModulePath.startsWith('../')) {
+                pathsToTry.push(`../build/server/${originalModulePath}`);
+              } else {
+                // No leading ./ or ../, assume it's relative to build/server
+                pathsToTry.push(`../build/server/${originalModulePath}`);
+              }
+              
+              // 2. Try with .js extension if not present
+              if (!originalModulePath.endsWith('.js') && !originalModulePath.endsWith('.jsx') && !originalModulePath.endsWith('.ts') && !originalModulePath.endsWith('.tsx')) {
+                const withJs = pathsToTry[pathsToTry.length - 1] + '.js';
+                pathsToTry.push(withJs);
+              }
+              
+              // 3. Try original path as-is (might work in some cases)
+              pathsToTry.push(originalModulePath);
+            }
+            
+            return {
+              ...route,
+              lazy: async () => {
+                let module;
+                let lastError;
+                
+                // Try each path until one works
+                for (const path of pathsToTry) {
+                  try {
+                    module = await import(path);
+                    console.log(`✅ Successfully loaded module ${originalModulePath} from ${path}`);
+                    break;
+                  } catch (importError) {
+                    lastError = importError;
+                    // Continue to next path
+                    continue;
+                  }
+                }
+                
+                if (!module) {
+                  console.error(`❌ Failed to load module ${originalModulePath} from all paths:`, pathsToTry);
+                  console.error(`   Last error:`, lastError?.message);
+                  // Return a fallback component that renders nothing
+                  // This prevents the "no element" warning but won't render anything
+                  return {
+                    Component: () => {
+                      console.warn(`Route ${route.id || route.path} component failed to load`);
+                      return null;
+                    },
+                  };
+                }
+                
+                // Route modules can export multiple things per React Router v7 Route Module docs:
+                // - default: Component
+                // - loader: data loading function
+                // - action: data mutation function
+                // - ErrorBoundary: error handling component
+                // - headers: HTTP headers function
+                // - meta: meta tags function
+                // - and more...
+                // We need to extract ALL exports, not just the Component
+                
+                const Component = module.default;
+                
+                if (!Component) {
+                  console.error(`❌ Module ${originalModulePath} does not have a default export`);
+                  return {
+                    Component: () => {
+                      console.warn(`Route ${route.id || route.path} has no default export`);
+                      return null;
+                    },
+                  };
+                }
+                
+                // Return all route module exports for createStaticHandler
+                // This follows React Router v7 best practices for Route Modules
+                const routeModuleExports = {
+                  Component: Component,
+                };
+                
+                // Extract other route module exports if they exist
+                if (module.loader) {
+                  routeModuleExports.loader = module.loader;
+                }
+                if (module.action) {
+                  routeModuleExports.action = module.action;
+                }
+                if (module.ErrorBoundary) {
+                  routeModuleExports.ErrorBoundary = module.ErrorBoundary;
+                }
+                if (module.headers) {
+                  routeModuleExports.headers = module.headers;
+                }
+                if (module.meta) {
+                  routeModuleExports.meta = module.meta;
+                }
+                if (module.clientLoader) {
+                  routeModuleExports.clientLoader = module.clientLoader;
+                }
+                if (module.clientAction) {
+                  routeModuleExports.clientAction = module.clientAction;
+                }
+                if (module.HydrateFallback) {
+                  routeModuleExports.HydrateFallback = module.HydrateFallback;
+                }
+                if (module.handle) {
+                  routeModuleExports.handle = module.handle;
+                }
+                if (module.shouldRevalidate) {
+                  routeModuleExports.shouldRevalidate = module.shouldRevalidate;
+                }
+                
+                return routeModuleExports;
+              },
+            };
+          }
+          
+          // If module is neither object nor string, log and return as-is
+          console.warn(`⚠️  Route ${route.id || route.path} has unexpected module type:`, typeof moduleValue);
+          return route;
         }
         
         // If route has no component and no module, log a warning but keep it
