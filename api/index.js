@@ -146,8 +146,16 @@ async function getRequestHandler() {
                 };
               }
               
-              // Route modules export a default component per React Router v7 docs
-              // Return an object with Component from the module's default export
+              // Route modules can export multiple things per React Router v7 Route Module docs:
+              // - default: Component
+              // - loader: data loading function
+              // - action: data mutation function
+              // - ErrorBoundary: error handling component
+              // - headers: HTTP headers function
+              // - meta: meta tags function
+              // - and more...
+              // We need to extract ALL exports, not just the Component
+              
               const Component = module.default;
               
               if (!Component) {
@@ -160,9 +168,45 @@ async function getRequestHandler() {
                 };
               }
               
-              return {
+              // Return all route module exports for createStaticHandler
+              // This follows React Router v7 best practices for Route Modules
+              const routeModuleExports = {
                 Component: Component,
               };
+              
+              // Extract other route module exports if they exist
+              if (module.loader) {
+                routeModuleExports.loader = module.loader;
+              }
+              if (module.action) {
+                routeModuleExports.action = module.action;
+              }
+              if (module.ErrorBoundary) {
+                routeModuleExports.ErrorBoundary = module.ErrorBoundary;
+              }
+              if (module.headers) {
+                routeModuleExports.headers = module.headers;
+              }
+              if (module.meta) {
+                routeModuleExports.meta = module.meta;
+              }
+              if (module.clientLoader) {
+                routeModuleExports.clientLoader = module.clientLoader;
+              }
+              if (module.clientAction) {
+                routeModuleExports.clientAction = module.clientAction;
+              }
+              if (module.HydrateFallback) {
+                routeModuleExports.HydrateFallback = module.HydrateFallback;
+              }
+              if (module.handle) {
+                routeModuleExports.handle = module.handle;
+              }
+              if (module.shouldRevalidate) {
+                routeModuleExports.shouldRevalidate = module.shouldRevalidate;
+              }
+              
+              return routeModuleExports;
             },
           };
         }
