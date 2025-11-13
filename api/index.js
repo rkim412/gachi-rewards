@@ -14,13 +14,27 @@ async function getRequestHandler() {
   }
 
   try {
-    // Import the server build - React Router v7 exports a default handler
+    // Import the server build - React Router v7 exports build config, not a handler directly
     const build = await import("../build/server/index.js");
     
-    // React Router v7's build exports a default handler function
-    if (typeof build.default === "function") {
+    // React Router v7's build exports config with an 'entry' field pointing to the server entry
+    if (build.entry) {
+      // Import the actual server entry file
+      const serverEntry = await import(`../build/server/${build.entry}`);
+      
+      // The server entry should export a default handler function
+      if (typeof serverEntry.default === "function") {
+        requestHandler = serverEntry.default;
+      } else if (serverEntry.handler) {
+        requestHandler = serverEntry.handler;
+      } else {
+        throw new Error("Handler not found in server entry. Available exports: " + Object.keys(serverEntry).join(", "));
+      }
+    } else if (typeof build.default === "function") {
+      // Fallback: try default export
       requestHandler = build.default;
     } else if (build.handler) {
+      // Fallback: try handler export
       requestHandler = build.handler;
     } else {
       throw new Error("React Router handler not found in build. Available exports: " + Object.keys(build).join(", "));
