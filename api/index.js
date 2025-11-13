@@ -28,50 +28,73 @@ async function getRequestHandler() {
       routesType: typeof build.routes,
       routesIsArray: Array.isArray(build.routes),
       routesLength: build.routes?.length || 0,
+      routesValue: build.routes, // Log actual value to see what it is
+      hasRouteDiscovery: !!build.routeDiscovery,
+      routeDiscoveryType: typeof build.routeDiscovery,
       hasEntry: !!build.entry,
       entryType: typeof build.entry,
       availableExports: Object.keys(build),
     });
     
-    // Get routes from build, or fallback to importing from source
-    // React Router v7 should export routes in build.routes
+    // Get routes from build
+    // React Router v7 exports routes, but it might be in different formats
     let routes = build.routes;
     
-    // If routes is not available in build, try importing from the source routes file
+    // Check if routes is a function (might need to be called)
+    if (typeof routes === "function") {
+      console.log("⚠️  build.routes is a function, attempting to call it...");
+      try {
+        routes = routes();
+        console.log("✅ Called build.routes() function, got:", typeof routes, Array.isArray(routes) ? routes.length : "not array");
+      } catch (funcError) {
+        console.warn("⚠️  Error calling build.routes() function:", funcError.message);
+        routes = null;
+      }
+    }
+    
+    // Check if routes is an object with a default or routes property
+    if (routes && typeof routes === "object" && !Array.isArray(routes)) {
+      console.log("⚠️  build.routes is an object, checking for default/routes property...");
+      routes = routes.default || routes.routes || routes;
+      console.log("✅ Extracted routes from object:", typeof routes, Array.isArray(routes) ? routes.length : "not array");
+    }
+    
+    // If routes is still not an array, try routeDiscovery
     if (!routes || !Array.isArray(routes) || routes.length === 0) {
-      console.log("⚠️  build.routes not available, attempting to import from source...");
+      console.log("⚠️  build.routes not available as array, checking routeDiscovery...");
+      if (build.routeDiscovery) {
+        // routeDiscovery might contain route information
+        if (typeof build.routeDiscovery === "function") {
+          try {
+            routes = build.routeDiscovery();
+            console.log("✅ Called routeDiscovery() function, got:", typeof routes, Array.isArray(routes) ? routes.length : "not array");
+          } catch (discoveryError) {
+            console.warn("⚠️  Error calling routeDiscovery():", discoveryError.message);
+          }
+        } else if (Array.isArray(build.routeDiscovery)) {
+          routes = build.routeDiscovery;
+          console.log("✅ Using routeDiscovery as routes array:", routes.length);
+        } else if (build.routeDiscovery.routes) {
+          routes = build.routeDiscovery.routes;
+          console.log("✅ Extracted routes from routeDiscovery.routes:", Array.isArray(routes) ? routes.length : "not array");
+        }
+      }
+    }
+    
+    // If routes is still not available, try importing from source
+    if (!routes || !Array.isArray(routes) || routes.length === 0) {
+      console.log("⚠️  build.routes not available as array, attempting to import from source...");
       try {
         // Try importing routes from the source app/routes.js file
-        // In the build, this should be available as app/routes.js
         const routesModule = await import("../../app/routes.js");
         routes = routesModule.default || routesModule.routes || [];
-        console.log("✅ Imported routes from app/routes.js:", routes.length);
+        // If it's a function, call it
+        if (typeof routes === "function") {
+          routes = routes();
+        }
+        console.log("✅ Imported routes from app/routes.js:", Array.isArray(routes) ? routes.length : "not array");
       } catch (routesError) {
         console.warn("⚠️  Could not import routes from app/routes.js:", routesError.message);
-        
-        // Try importing from build/server if it exists
-        try {
-          const buildRoutesModule = await import("../build/server/routes.js");
-          routes = buildRoutesModule.default || buildRoutesModule.routes || [];
-          console.log("✅ Imported routes from build/server/routes.js:", routes.length);
-        } catch (buildRoutesError) {
-          console.warn("⚠️  Could not import routes from build/server/routes.js:", buildRoutesError.message);
-          
-          // Last resort: check if routes are in a different property
-          if (build.routeManifest || build.routeModules) {
-            console.log("⚠️  Found routeManifest or routeModules, attempting to extract routes...");
-            // Try to extract routes from these properties if they exist
-            routes = build.routeManifest?.routes || build.routeModules || [];
-          } else {
-            // If all else fails, throw an error instead of using empty array
-            console.error("❌ Could not find routes anywhere. Build exports:", Object.keys(build));
-            throw new Error(
-              "Could not find routes. " +
-              "Available build exports: " + Object.keys(build).join(", ") + ". " +
-              "Please check React Router v7 build output structure."
-            );
-          }
-        }
       }
     }
     
