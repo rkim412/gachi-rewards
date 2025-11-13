@@ -61,16 +61,22 @@ async function getRequestHandler() {
       // The object has route IDs as keys and route definitions as values
       const routesArray = Object.values(routes);
       
-      // Filter out routes that don't have a module (they're just placeholders)
-      const validRoutes = routesArray.filter(route => route.module);
-      
+      // Don't filter - React Router v7 build already has the correct route structure
+      // All routes in the manifest should be valid, including the root route
+      // Filtering by route.module might remove valid routes like the root route
       console.log("✅ Converted route manifest to array:", {
         totalRoutes: routesArray.length,
-        validRoutes: validRoutes.length,
-        routeIds: routesArray.map(r => r.id).slice(0, 5), // Show first 5 route IDs
+        routeIds: routesArray.map(r => r.id || r.path || "unknown").slice(0, 10),
+        hasRootRoute: routesArray.some(r => r.path === "" || r.id === "root" || r.id?.includes("root")),
+        sampleRoute: routesArray[0] ? {
+          id: routesArray[0].id,
+          path: routesArray[0].path,
+          hasModule: !!routesArray[0].module,
+          hasComponent: !!(routesArray[0].Component || routesArray[0].element || routesArray[0].component),
+        } : null,
       });
       
-      routes = validRoutes;
+      routes = routesArray;
     }
     
     // If routes is still not an array, try routeDiscovery
