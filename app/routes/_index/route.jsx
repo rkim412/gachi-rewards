@@ -18,9 +18,9 @@ export default function App() {
   return (
     <div className={styles.index}>
       <div className={styles.content}>
-        <h1 className={styles.heading}>A short heading about [your app]</h1>
+        <h1 className={styles.heading}>Gachi Rewards - Viral Referral Engine</h1>
         <p className={styles.text}>
-          A tagline about [your app] that describes your value proposition.
+          Turn every customer into a brand ambassador. Automatic referral links, secure discount codes, and viral growth for your Shopify store.
         </p>
         {showForm && (
           <Form className={styles.form} method="post" action="/auth/login">
@@ -36,16 +36,13 @@ export default function App() {
         )}
         <ul className={styles.list}>
           <li>
-            <strong>Product feature</strong>. Some detail about your feature and
-            its benefit to your customer.
+            <strong>Automatic Referral Links</strong>. Every customer gets a unique referral code after purchase, ready to share with friends and family.
           </li>
           <li>
-            <strong>Product feature</strong>. Some detail about your feature and
-            its benefit to your customer.
+            <strong>Secure One-Time Discounts</strong>. Safe links prevent coupon code scraping and ensure discounts are used once per customer.
           </li>
           <li>
-            <strong>Product feature</strong>. Some detail about your feature and
-            its benefit to your customer.
+            <strong>Viral Growth Engine</strong>. Track referrals, reward customers, and watch your customer base grow organically through word-of-mouth.
           </li>
         </ul>
       </div>
