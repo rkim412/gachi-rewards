@@ -1,5 +1,5 @@
--- CreateTable
-CREATE TABLE "Session" (
+-- CreateTable (with IF NOT EXISTS to handle partial migrations)
+CREATE TABLE IF NOT EXISTS "Session" (
     "id" TEXT NOT NULL,
     "shop" TEXT NOT NULL,
     "state" TEXT NOT NULL,
@@ -20,7 +20,7 @@ CREATE TABLE "Session" (
 );
 
 -- CreateTable
-CREATE TABLE "StorefrontUser" (
+CREATE TABLE IF NOT EXISTS "StorefrontUser" (
     "id" SERIAL NOT NULL,
     "email" TEXT NOT NULL,
     "storefrontUserId" TEXT NOT NULL,
@@ -31,7 +31,7 @@ CREATE TABLE "StorefrontUser" (
 );
 
 -- CreateTable
-CREATE TABLE "ReferralDiscountCode" (
+CREATE TABLE IF NOT EXISTS "ReferralDiscountCode" (
     "id" SERIAL NOT NULL,
     "referralCode" TEXT NOT NULL,
     "discountCode" TEXT NOT NULL,
@@ -44,7 +44,7 @@ CREATE TABLE "ReferralDiscountCode" (
 );
 
 -- CreateTable
-CREATE TABLE "ReferralSafeLink" (
+CREATE TABLE IF NOT EXISTS "ReferralSafeLink" (
     "id" SERIAL NOT NULL,
     "oneTimeCode" TEXT NOT NULL,
     "referralCodeId" INTEGER NOT NULL,
@@ -58,7 +58,7 @@ CREATE TABLE "ReferralSafeLink" (
 );
 
 -- CreateTable
-CREATE TABLE "ReferralJoin" (
+CREATE TABLE IF NOT EXISTS "ReferralJoin" (
     "id" SERIAL NOT NULL,
     "referralCodeId" INTEGER NOT NULL,
     "referrerStorefrontUserId" INTEGER,
@@ -78,7 +78,7 @@ CREATE TABLE "ReferralJoin" (
 );
 
 -- CreateTable
-CREATE TABLE "ReferralConfig" (
+CREATE TABLE IF NOT EXISTS "ReferralConfig" (
     "id" SERIAL NOT NULL,
     "siteId" TEXT NOT NULL,
     "enabled" BOOLEAN NOT NULL DEFAULT true,
@@ -95,87 +95,78 @@ CREATE TABLE "ReferralConfig" (
     CONSTRAINT "ReferralConfig_pkey" PRIMARY KEY ("id")
 );
 
--- CreateIndex
-CREATE UNIQUE INDEX "StorefrontUser_storefrontUserId_siteId_key" ON "StorefrontUser"("storefrontUserId", "siteId");
+-- CreateIndex (with IF NOT EXISTS)
+CREATE INDEX IF NOT EXISTS "StorefrontUser_storefrontUserId_siteId_idx" ON "StorefrontUser"("storefrontUserId", "siteId");
+CREATE UNIQUE INDEX IF NOT EXISTS "StorefrontUser_storefrontUserId_siteId_key" ON "StorefrontUser"("storefrontUserId", "siteId");
+CREATE INDEX IF NOT EXISTS "StorefrontUser_email_siteId_idx" ON "StorefrontUser"("email", "siteId");
+CREATE INDEX IF NOT EXISTS "StorefrontUser_siteId_idx" ON "StorefrontUser"("siteId");
+CREATE INDEX IF NOT EXISTS "StorefrontUser_storefrontUserId_idx" ON "StorefrontUser"("storefrontUserId");
 
 -- CreateIndex
-CREATE INDEX "StorefrontUser_email_siteId_idx" ON "StorefrontUser"("email", "siteId");
+CREATE UNIQUE INDEX IF NOT EXISTS "ReferralDiscountCode_referralCode_siteId_key" ON "ReferralDiscountCode"("referralCode", "siteId");
+CREATE UNIQUE INDEX IF NOT EXISTS "ReferralDiscountCode_referrerStorefrontUserId_key" ON "ReferralDiscountCode"("referrerStorefrontUserId");
+CREATE INDEX IF NOT EXISTS "ReferralDiscountCode_discountCode_idx" ON "ReferralDiscountCode"("discountCode");
+CREATE INDEX IF NOT EXISTS "ReferralDiscountCode_siteId_referrerStorefrontUserId_idx" ON "ReferralDiscountCode"("siteId", "referrerStorefrontUserId");
+CREATE INDEX IF NOT EXISTS "ReferralDiscountCode_siteId_idx" ON "ReferralDiscountCode"("siteId");
 
 -- CreateIndex
-CREATE INDEX "StorefrontUser_siteId_idx" ON "StorefrontUser"("siteId");
+CREATE UNIQUE INDEX IF NOT EXISTS "ReferralSafeLink_oneTimeCode_key" ON "ReferralSafeLink"("oneTimeCode");
+CREATE INDEX IF NOT EXISTS "ReferralSafeLink_oneTimeCode_idx" ON "ReferralSafeLink"("oneTimeCode");
+CREATE INDEX IF NOT EXISTS "ReferralSafeLink_used_idx" ON "ReferralSafeLink"("used");
+CREATE INDEX IF NOT EXISTS "ReferralSafeLink_expiresAt_idx" ON "ReferralSafeLink"("expiresAt");
+CREATE INDEX IF NOT EXISTS "ReferralSafeLink_used_expiresAt_idx" ON "ReferralSafeLink"("used", "expiresAt");
+CREATE INDEX IF NOT EXISTS "ReferralSafeLink_referralCodeId_idx" ON "ReferralSafeLink"("referralCodeId");
 
 -- CreateIndex
-CREATE INDEX "StorefrontUser_storefrontUserId_idx" ON "StorefrontUser"("storefrontUserId");
+CREATE UNIQUE INDEX IF NOT EXISTS "ReferralJoin_orderId_key" ON "ReferralJoin"("orderId");
+CREATE INDEX IF NOT EXISTS "ReferralJoin_orderId_idx" ON "ReferralJoin"("orderId");
+CREATE INDEX IF NOT EXISTS "ReferralJoin_siteId_referralCodeId_idx" ON "ReferralJoin"("siteId", "referralCodeId");
+CREATE INDEX IF NOT EXISTS "ReferralJoin_status_idx" ON "ReferralJoin"("status");
+CREATE INDEX IF NOT EXISTS "ReferralJoin_refereeEmail_siteId_idx" ON "ReferralJoin"("refereeEmail", "siteId");
+CREATE INDEX IF NOT EXISTS "ReferralJoin_siteId_createdAt_idx" ON "ReferralJoin"("siteId", "createdAt");
+CREATE INDEX IF NOT EXISTS "ReferralJoin_referralCodeId_createdAt_idx" ON "ReferralJoin"("referralCodeId", "createdAt");
+CREATE INDEX IF NOT EXISTS "ReferralJoin_referrerStorefrontUserId_idx" ON "ReferralJoin"("referrerStorefrontUserId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "ReferralDiscountCode_referralCode_siteId_key" ON "ReferralDiscountCode"("referralCode", "siteId");
+CREATE UNIQUE INDEX IF NOT EXISTS "ReferralConfig_siteId_key" ON "ReferralConfig"("siteId");
 
--- CreateIndex
-CREATE UNIQUE INDEX "ReferralDiscountCode_referrerStorefrontUserId_key" ON "ReferralDiscountCode"("referrerStorefrontUserId");
+-- AddForeignKey (with IF NOT EXISTS check - PostgreSQL doesn't support IF NOT EXISTS for constraints, so we'll use DO blocks)
+DO $$ 
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'ReferralDiscountCode_referrerStorefrontUserId_fkey'
+    ) THEN
+        ALTER TABLE "ReferralDiscountCode" ADD CONSTRAINT "ReferralDiscountCode_referrerStorefrontUserId_fkey" 
+        FOREIGN KEY ("referrerStorefrontUserId") REFERENCES "StorefrontUser"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+    END IF;
+END $$;
 
--- CreateIndex
-CREATE INDEX "ReferralDiscountCode_discountCode_idx" ON "ReferralDiscountCode"("discountCode");
+DO $$ 
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'ReferralSafeLink_referralCodeId_fkey'
+    ) THEN
+        ALTER TABLE "ReferralSafeLink" ADD CONSTRAINT "ReferralSafeLink_referralCodeId_fkey" 
+        FOREIGN KEY ("referralCodeId") REFERENCES "ReferralDiscountCode"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+    END IF;
+END $$;
 
--- CreateIndex
-CREATE INDEX "ReferralDiscountCode_siteId_referrerStorefrontUserId_idx" ON "ReferralDiscountCode"("siteId", "referrerStorefrontUserId");
+DO $$ 
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'ReferralJoin_referralCodeId_fkey'
+    ) THEN
+        ALTER TABLE "ReferralJoin" ADD CONSTRAINT "ReferralJoin_referralCodeId_fkey" 
+        FOREIGN KEY ("referralCodeId") REFERENCES "ReferralDiscountCode"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+    END IF;
+END $$;
 
--- CreateIndex
-CREATE INDEX "ReferralDiscountCode_siteId_idx" ON "ReferralDiscountCode"("siteId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "ReferralSafeLink_oneTimeCode_key" ON "ReferralSafeLink"("oneTimeCode");
-
--- CreateIndex
-CREATE INDEX "ReferralSafeLink_oneTimeCode_idx" ON "ReferralSafeLink"("oneTimeCode");
-
--- CreateIndex
-CREATE INDEX "ReferralSafeLink_used_idx" ON "ReferralSafeLink"("used");
-
--- CreateIndex
-CREATE INDEX "ReferralSafeLink_expiresAt_idx" ON "ReferralSafeLink"("expiresAt");
-
--- CreateIndex
-CREATE INDEX "ReferralSafeLink_used_expiresAt_idx" ON "ReferralSafeLink"("used", "expiresAt");
-
--- CreateIndex
-CREATE INDEX "ReferralSafeLink_referralCodeId_idx" ON "ReferralSafeLink"("referralCodeId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "ReferralJoin_orderId_key" ON "ReferralJoin"("orderId");
-
--- CreateIndex
-CREATE INDEX "ReferralJoin_orderId_idx" ON "ReferralJoin"("orderId");
-
--- CreateIndex
-CREATE INDEX "ReferralJoin_siteId_referralCodeId_idx" ON "ReferralJoin"("siteId", "referralCodeId");
-
--- CreateIndex
-CREATE INDEX "ReferralJoin_status_idx" ON "ReferralJoin"("status");
-
--- CreateIndex
-CREATE INDEX "ReferralJoin_refereeEmail_siteId_idx" ON "ReferralJoin"("refereeEmail", "siteId");
-
--- CreateIndex
-CREATE INDEX "ReferralJoin_siteId_createdAt_idx" ON "ReferralJoin"("siteId", "createdAt");
-
--- CreateIndex
-CREATE INDEX "ReferralJoin_referralCodeId_createdAt_idx" ON "ReferralJoin"("referralCodeId", "createdAt");
-
--- CreateIndex
-CREATE INDEX "ReferralJoin_referrerStorefrontUserId_idx" ON "ReferralJoin"("referrerStorefrontUserId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "ReferralConfig_siteId_key" ON "ReferralConfig"("siteId");
-
--- AddForeignKey
-ALTER TABLE "ReferralDiscountCode" ADD CONSTRAINT "ReferralDiscountCode_referrerStorefrontUserId_fkey" FOREIGN KEY ("referrerStorefrontUserId") REFERENCES "StorefrontUser"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ReferralSafeLink" ADD CONSTRAINT "ReferralSafeLink_referralCodeId_fkey" FOREIGN KEY ("referralCodeId") REFERENCES "ReferralDiscountCode"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ReferralJoin" ADD CONSTRAINT "ReferralJoin_referralCodeId_fkey" FOREIGN KEY ("referralCodeId") REFERENCES "ReferralDiscountCode"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ReferralJoin" ADD CONSTRAINT "ReferralJoin_referrerStorefrontUserId_fkey" FOREIGN KEY ("referrerStorefrontUserId") REFERENCES "StorefrontUser"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
+DO $$ 
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'ReferralJoin_referrerStorefrontUserId_fkey'
+    ) THEN
+        ALTER TABLE "ReferralJoin" ADD CONSTRAINT "ReferralJoin_referrerStorefrontUserId_fkey" 
+        FOREIGN KEY ("referrerStorefrontUserId") REFERENCES "StorefrontUser"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END $$;
