@@ -1,7 +1,6 @@
 import React from "react";
 import {
   reactExtension,
-  useApi,
   Text,
   BlockStack,
   Button,
@@ -13,13 +12,17 @@ export default reactExtension("purchase.thank-you.block.render", () => (
 ));
 
 function ReferralThankYou() {
-  const { query } = useApi();
   const [loading, setLoading] = React.useState(false);
   const [referralLink, setReferralLink] = React.useState(null);
+  const [referralCode, setReferralCode] = React.useState(null);
   const [error, setError] = React.useState(null);
 
   React.useEffect(() => {
-    fetchReferralLink();
+    // Delay fetch to ensure extension is fully initialized
+    const timer = setTimeout(() => {
+      fetchReferralLink();
+    }, 100);
+    return () => clearTimeout(timer);
   }, []);
 
   const fetchReferralLink = async () => {
@@ -27,39 +30,44 @@ function ReferralThankYou() {
       setLoading(true);
       setError(null);
 
-      // Try to get order info from Order Confirmation API (may not be available)
+      // Use global shopify object (API version 2025-10+)
+      // No need for useApi() hook anymore!
       let order = null;
       let customer = null;
-      
+      let apiUrl = "/apps/gachi-rewards/api/generate";
+
       try {
-        order = await query("purchase");
-        customer = order?.customer;
-      } catch (queryError) {
-        // Purchase API may not be available - that's okay, we'll proceed without it
-        console.warn("Could not get purchase data:", queryError);
+        // Access purchase data via global shopify object
+        if (typeof shopify !== 'undefined' && shopify.purchase) {
+          order = await shopify.purchase;
+          customer = order?.customer;
+        }
+      } catch (purchaseError) {
+        console.warn("Could not get purchase data:", purchaseError);
       }
 
-      // Build query parameters - handle both logged-in and guest customers
+      // Get settings from global shopify object
+      try {
+        if (typeof shopify !== 'undefined' && shopify.settings) {
+          const settings = await shopify.settings;
+          if (settings?.api_url) {
+            apiUrl = settings.api_url;
+          }
+        }
+      } catch (settingsError) {
+        console.warn("Could not get settings, using default:", settingsError);
+      }
+
+      // Build query parameters
       const params = new URLSearchParams();
       if (order?.id) params.append("orderId", order.id);
       if (customer?.id) params.append("customerId", customer.id);
       if (customer?.email) params.append("customerEmail", customer.email);
-      
-      // Get API URL from settings (handle errors gracefully)
-      let apiUrl = "/apps/gachi-rewards/api/generate";
-      try {
-        const settingsUrl = query("settings.api_url");
-        if (settingsUrl) {
-          apiUrl = settingsUrl;
-        }
-      } catch (settingsError) {
-        console.warn("Could not get settings.api_url, using default:", settingsError);
-      }
 
       // Make API call - App Proxy will add shop, timestamp, signature automatically
-      const proxyUrl = `${apiUrl}?${params.toString()}`;
+      const proxyUrl = `${apiUrl}${params.toString() ? `?${params.toString()}` : ''}`;
       
-      console.log("Fetching referral link from:", proxyUrl);
+      console.log("[Order Status] Fetching referral link from:", proxyUrl);
       
       const response = await fetch(proxyUrl, {
         method: "GET",
@@ -75,10 +83,11 @@ function ReferralThankYou() {
       }
 
       const data = await response.json();
-      console.log("Referral API response:", data);
+      console.log("[Order Status] Referral API response:", data);
 
       if (data.success && data.referralLink) {
         setReferralLink(data.referralLink);
+        setReferralCode(data.referralCode || extractCodeFromLink(data.referralLink));
       } else {
         setError(data.error || "Failed to generate referral link");
       }
@@ -90,11 +99,16 @@ function ReferralThankYou() {
     }
   };
 
+  const extractCodeFromLink = (link) => {
+    if (!link) return null;
+    const match = link.match(/[?&]ref=([^&]+)/);
+    return match ? match[1] : null;
+  };
+
   const copyToClipboard = async () => {
     if (referralLink) {
       try {
         await navigator.clipboard.writeText(referralLink);
-        // Show success message
         alert("Referral link copied!");
       } catch (err) {
         console.error("Failed to copy:", err);
@@ -104,23 +118,22 @@ function ReferralThankYou() {
 
   if (loading) {
     return (
-      <BlockStack spacing="tight">
-        <Text>Generating your referral link...</Text>
-      </BlockStack>
+      <Banner status="info">
+        <BlockStack spacing="tight">
+          <Text>Generating your referral link...</Text>
+        </BlockStack>
+      </Banner>
     );
   }
 
   if (error) {
-    // Show error but don't block the page - just log it
     console.error("Referral link error:", error);
-    // Return null to hide the extension if there's an error
-    // Or show a non-critical message
     return (
-      <BlockStack spacing="tight">
-        <Text size="small" appearance="subdued">
+      <Banner status="warning">
+        <Text size="small">
           Referral link will be available soon.
         </Text>
-      </BlockStack>
+      </Banner>
     );
   }
 
@@ -129,18 +142,28 @@ function ReferralThankYou() {
   }
 
   return (
-    <BlockStack spacing="base">
-      <Text size="large" emphasis="bold">
-        🎉 Share your link and give friends 10% off!
-      </Text>
-      <Text>Copy your referral link below:</Text>
-      <BlockStack spacing="tight">
-        <Text size="small" appearance="subdued">
-          {referralLink}
+    <Banner status="success">
+      <BlockStack spacing="base">
+        <Text size="large" emphasis="bold">
+          You can make money promoting our products!
         </Text>
-        <Button onPress={copyToClipboard}>Copy Referral Link</Button>
+        <Text>
+          Simply share the discount code we created just for you <Text emphasis="bold">{referralCode || "CODE"}</Text> and receive 10% every time someone purchases using your code!
+        </Text>
+        <Text size="small" appearance="subdued">
+          <Text emphasis="bold">FULL OFFER DETAILS</Text>
+        </Text>
+        <Text size="medium" emphasis="bold">
+          Share now and start earning ↓
+        </Text>
+        <BlockStack spacing="tight">
+          <Text size="small" appearance="subdued">
+            {referralLink}
+          </Text>
+          <Button onPress={copyToClipboard}>Copy Referral Link</Button>
+        </BlockStack>
       </BlockStack>
-    </BlockStack>
+    </Banner>
   );
 }
 
