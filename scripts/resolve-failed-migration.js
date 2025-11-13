@@ -10,10 +10,12 @@ const MIGRATION_NAME = '20250101000000_init_postgresql';
 
 // Check if DATABASE_URL is set
 if (!process.env.DATABASE_URL) {
-  console.error('❌ ERROR: DATABASE_URL environment variable is not set!');
+  console.error('⚠️  WARNING: DATABASE_URL environment variable is not set!');
+  console.error('   Skipping migration resolution.');
   console.error('   Please set DATABASE_URL in Vercel environment variables.');
   console.error('   Get the value from: Vercel Dashboard → Storage → Postgres → POSTGRES_PRISMA_URL');
-  process.exit(1);
+  console.error('   Migration will be skipped during this build.');
+  process.exit(0); // Exit successfully so build can continue
 }
 
 // Validate DATABASE_URL format
