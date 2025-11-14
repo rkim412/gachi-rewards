@@ -37,7 +37,7 @@ export async function findOrCreateReferralCode({
 }) {
   const siteId = shop;
 
-  // Check if user already has a referral code
+  // Check if user already exists by storefrontUserId
   let user = await prisma.storefrontUser.findUnique({
     where: {
       storefrontUserId_siteId: {
@@ -50,6 +50,46 @@ export async function findOrCreateReferralCode({
     },
   });
 
+  // If not found and this is a registered customer (has Shopify GID),
+  // check if a guest entry exists with the same email
+  if (!user && storefrontUserId.startsWith('gid://shopify/Customer/') && email) {
+    // Find all users with this email and siteId, then filter for guest entries
+    const usersWithEmail = await prisma.storefrontUser.findMany({
+      where: {
+        email: email,
+        siteId: siteId,
+      },
+      include: {
+        referralDiscountCode: true,
+      },
+    });
+
+    // Find the first guest entry (storefrontUserId starts with 'guest-')
+    const guestUser = usersWithEmail.find(u => u.storefrontUserId.startsWith('guest-'));
+
+    // If guest entry found, update it to use the real customer ID
+    if (guestUser) {
+      console.log(`Merging guest entry (${guestUser.storefrontUserId}) with registered customer (${storefrontUserId}) for email ${email}`);
+      
+      // Update guest entry to registered customer
+      user = await prisma.storefrontUser.update({
+        where: { id: guestUser.id },
+        data: {
+          storefrontUserId: storefrontUserId, // Update to real Shopify GID
+        },
+        include: {
+          referralDiscountCode: true,
+        },
+      });
+
+      // If guest entry already had a referral code, return it
+      if (user.referralDiscountCode) {
+        return user.referralDiscountCode;
+      }
+    }
+  }
+
+  // If user already has a referral code, return it
   if (user?.referralDiscountCode) {
     return user.referralDiscountCode;
   }
