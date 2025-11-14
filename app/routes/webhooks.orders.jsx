@@ -1,10 +1,12 @@
 import { authenticate } from "../shopify.server.js";
-import { createReferralJoin, markSafeLinkUsed } from "../services/referral.server.js";
+import { createReferralJoin, markSafeLinkUsed, findOrCreateReferralCode } from "../services/referral.server.js";
+import { createShopifyDiscount } from "../services/discount.server.js";
 import prisma from "../db.server.js";
 
 /**
  * Webhook handler for orders/create
  * Tracks referral conversions when orders are created
+ * Automatically creates referral codes for new customers
  * 
  * Topic: orders/create
  * URI: /webhooks/orders/create
@@ -16,6 +18,77 @@ export const action = async ({ request }) => {
     if (topic === "orders/create") {
       const order = await request.json();
 
+      // ============================================
+      // AUTO-CREATE REFERRAL CODE FOR NEW CUSTOMERS
+      // ============================================
+      // Automatically create referral code for any customer who makes a purchase
+      if (order.customer?.id || order.email) {
+        try {
+          const customerId = order.customer?.id || `guest-${order.email || order.id}`;
+          const customerEmail = order.email || `guest-${order.id}@temp.com`;
+
+          // Find or create referral code for this customer
+          const referralCodeRecord = await findOrCreateReferralCode({
+            shop,
+            storefrontUserId: customerId,
+            email: customerEmail,
+          });
+
+          // If discount code doesn't exist yet, try to create it in Shopify
+          // Note: Webhooks typically don't have admin access, so discount creation
+          // will likely be deferred until the Thank You page loads (which has admin access)
+          if (!referralCodeRecord.discountCode || !referralCodeRecord.shopifyDiscountId) {
+            try {
+              // Get shop config for discount percentage
+              const config = await prisma.referralConfig.findUnique({
+                where: { siteId: shop },
+              });
+
+              const discountPercentage = config?.amount || 10.0;
+              const discountCodeName = `GACHI-${referralCodeRecord.referralCode}`;
+
+              // Try to create discount - this will likely fail in webhook context
+              // (webhooks don't have admin access), but that's okay.
+              // The discount will be created when the Thank You page loads.
+              try {
+                const discount = await createShopifyDiscount({
+                  request,
+                  code: discountCodeName,
+                  percentageValue: discountPercentage,
+                  usageLimit: 1000,
+                });
+
+                // Update referral code record with Shopify discount info
+                await prisma.referralDiscountCode.update({
+                  where: { id: referralCodeRecord.id },
+                  data: {
+                    discountCode: discount.code,
+                    shopifyDiscountId: discount.id,
+                  },
+                });
+
+                console.log(`Auto-created referral code ${referralCodeRecord.referralCode} and discount for customer ${customerEmail}`);
+              } catch (discountError) {
+                // Expected: Webhooks don't have admin access, so discount creation fails
+                // The discount will be created when the Thank You page loads (which has admin access via App Proxy)
+                console.log(`Referral code ${referralCodeRecord.referralCode} created for customer ${customerEmail}. Discount will be created on Thank You page.`);
+              }
+            } catch (error) {
+              // Log but don't fail - discount can be created later
+              console.log(`Referral code created but discount creation skipped:`, error.message);
+            }
+          } else {
+            console.log(`Customer ${customerEmail} already has referral code ${referralCodeRecord.referralCode}`);
+          }
+        } catch (error) {
+          // Log but don't fail webhook - referral code creation is not critical for order processing
+          console.error(`Error auto-creating referral code:`, error);
+        }
+      }
+
+      // ============================================
+      // TRACK REFERRAL CONVERSIONS (existing logic)
+      // ============================================
       // Extract referral information from order attributes or discount codes
       let referralCode = null;
       let discountCode = null;
