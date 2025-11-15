@@ -648,29 +648,89 @@ export default async function handler(req, res) {
     
     // Handle request body - critical for webhook HMAC verification
     let body;
-    if (req.method !== "GET" && req.method !== "HEAD" && req.body !== undefined) {
-      if (isWebhook) {
-        // For webhooks, we MUST preserve the exact raw body string for HMAC verification
-        // Shopify calculates HMAC on the exact body bytes, so any formatting changes break verification
-        if (typeof req.body === "string") {
-          // Body is already a string - this is the raw body, use it as-is
+    
+    // For webhook requests, read raw body from stream to preserve exact bytes for HMAC verification
+    // Shopify's HMAC verification requires the exact raw body bytes - any parsing/reconstruction will fail
+    if (isWebhook && (req.method === "POST" || req.method === "PUT" || req.method === "PATCH")) {
+      try {
+        // Priority 1: Try to read raw body from request stream (if not already consumed)
+        // This preserves the exact bytes that Shopify sent for HMAC verification
+        if (req.readable && typeof req.on === 'function' && !req.readableEnded) {
+          const chunks = [];
+          
+          // Read from stream
+          await new Promise((resolve, reject) => {
+            // Set timeout to prevent hanging
+            const timeout = setTimeout(() => {
+              reject(new Error("Stream read timeout"));
+            }, 5000);
+            
+            req.on('data', (chunk) => {
+              chunks.push(chunk);
+            });
+            
+            req.on('end', () => {
+              clearTimeout(timeout);
+              resolve();
+            });
+            
+            req.on('error', (err) => {
+              clearTimeout(timeout);
+              reject(err);
+            });
+            
+            // If stream is already ended, resolve immediately
+            if (req.readableEnded) {
+              clearTimeout(timeout);
+              resolve();
+            }
+          });
+          
+          if (chunks.length > 0) {
+            // Convert buffer chunks to UTF-8 string
+            body = Buffer.concat(chunks).toString('utf8');
+            console.log("[WEBHOOK BODY] ✅ Read raw body from stream, length:", body.length);
+          } else {
+            // Stream was empty or already consumed, fall through to other methods
+            throw new Error("Stream was empty or already consumed");
+          }
+        } 
+        // Priority 2: Check if body is already a raw string (Vercel might provide it this way)
+        else if (typeof req.body === "string") {
           body = req.body;
-        } else if (req.body && typeof req.body === "object") {
-          // Body was parsed as JSON by Vercel - we need to reconstruct it
-          // Use JSON.stringify with no spaces to match Shopify's format as closely as possible
-          // Note: This might still fail if Shopify's JSON formatting differs
-          // The ideal solution is to prevent Vercel from parsing webhook bodies
+          console.log("[WEBHOOK BODY] ✅ Using req.body as raw string, length:", body.length);
+        } 
+        // Priority 3: Body was parsed as JSON - this will likely fail HMAC verification
+        else if (req.body && typeof req.body === "object") {
+          // Last resort: try to reconstruct, but this will likely fail HMAC verification
+          // because JSON.stringify may produce different formatting than Shopify's original
           body = JSON.stringify(req.body);
-          console.warn("[WEBHOOK BODY] Body was parsed as JSON, reconstructing. HMAC verification may fail if formatting differs.");
-        } else {
-          // Body is in an unexpected format
+          console.error("[WEBHOOK BODY] ❌ Body was parsed as JSON by Vercel. HMAC verification will likely FAIL.");
+          console.error("[WEBHOOK BODY] This happens when Vercel parses the body before our handler runs.");
+          console.error("[WEBHOOK BODY] Solution: Configure Vercel to not parse webhook request bodies.");
+        } 
+        // Priority 4: Body is missing or in unexpected format
+        else {
           body = undefined;
-          console.warn("[WEBHOOK BODY] Unexpected body type:", typeof req.body);
+          console.warn("[WEBHOOK BODY] ⚠️ Body is missing or in unexpected format:", typeof req.body);
         }
-      } else {
-        // For non-webhook requests, use normal body handling
-        body = typeof req.body === "string" ? req.body : JSON.stringify(req.body);
+      } catch (streamError) {
+        console.error("[WEBHOOK BODY] Error reading raw body from stream:", streamError.message);
+        
+        // Fallback: try req.body if stream reading failed
+        if (typeof req.body === "string") {
+          body = req.body;
+          console.log("[WEBHOOK BODY] Fallback: Using req.body as string, length:", body.length);
+        } else if (req.body && typeof req.body === "object") {
+          body = JSON.stringify(req.body);
+          console.error("[WEBHOOK BODY] Fallback: Body was parsed as JSON. HMAC verification will likely FAIL.");
+        } else {
+          body = undefined;
+        }
       }
+    } else if (req.method !== "GET" && req.method !== "HEAD" && req.body !== undefined) {
+      // For non-webhook requests, use normal body handling
+      body = typeof req.body === "string" ? req.body : JSON.stringify(req.body);
     } else {
       body = undefined;
     }
