@@ -11,12 +11,48 @@ import prisma from "../db.server.js";
  * Topic: orders/create
  * URI: /webhooks/orders/create
  */
+
+// GET handler for debugging - verify endpoint is accessible
+export const loader = async ({ request }) => {
+  return new Response(
+    JSON.stringify({
+      message: "Webhook endpoint is active",
+      method: request.method,
+      url: request.url,
+      timestamp: new Date().toISOString(),
+      note: "This endpoint accepts POST requests from Shopify webhooks",
+    }),
+    {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    }
+  );
+};
+
 export const action = async ({ request }) => {
+  // Log immediately - BEFORE authentication to catch all requests
+  // This will help diagnose if requests are reaching the server
+  console.log(`[WEBHOOK DEBUG] Incoming webhook request:`, {
+    method: request.method,
+    url: request.url,
+    hasBody: !!request.body,
+    headers: {
+      'x-shopify-topic': request.headers.get('x-shopify-topic'),
+      'x-shopify-shop-domain': request.headers.get('x-shopify-shop-domain'),
+      'x-shopify-hmac-sha256': request.headers.get('x-shopify-hmac-sha256') ? 'present' : 'missing',
+      'content-type': request.headers.get('content-type'),
+    },
+  });
+
   try {
     // Extract payload from authenticate.webhook() - don't call request.json() separately!
     const { shop, topic, payload } = await authenticate.webhook(request);
     
-    console.log(`[WEBHOOK] Received ${topic} webhook for ${shop}`); // Add logging to verify webhook is called
+    console.log(`[WEBHOOK] Received ${topic} webhook for ${shop}`, {
+      orderId: payload?.id,
+      orderNumber: payload?.order_number,
+      customerEmail: payload?.email,
+    });
 
     if (topic === "orders/create") {
       const order = payload; // Use payload directly, not request.json()
@@ -179,7 +215,20 @@ export const action = async ({ request }) => {
 
     return new Response(null, { status: 200 });
   } catch (error) {
-    console.error("Webhook error:", error);
+    // Log detailed error information
+    console.error("[WEBHOOK ERROR] Webhook processing failed:", {
+      error: error.message,
+      stack: error.stack,
+      name: error.name,
+      // Log request details for debugging
+      requestMethod: request.method,
+      requestUrl: request.url,
+      hasShopifyHeaders: {
+        topic: !!request.headers.get('x-shopify-topic'),
+        shop: !!request.headers.get('x-shopify-shop-domain'),
+        hmac: !!request.headers.get('x-shopify-hmac-sha256'),
+      },
+    });
     // Return 200 to prevent Shopify from retrying
     return new Response(null, { status: 200 });
   }
