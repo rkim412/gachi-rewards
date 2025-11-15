@@ -643,14 +643,43 @@ export default async function handler(req, res) {
     const host = req.headers.host;
     const url = new URL(req.url || "/", `${protocol}://${host}`);
 
+    // Check if this is a webhook request (Shopify webhooks have x-shopify-topic header)
+    const isWebhook = req.headers["x-shopify-topic"] || url.pathname.startsWith("/webhooks/");
+    
+    // Handle request body - critical for webhook HMAC verification
+    let body;
+    if (req.method !== "GET" && req.method !== "HEAD" && req.body !== undefined) {
+      if (isWebhook) {
+        // For webhooks, we MUST preserve the exact raw body string for HMAC verification
+        // Shopify calculates HMAC on the exact body bytes, so any formatting changes break verification
+        if (typeof req.body === "string") {
+          // Body is already a string - this is the raw body, use it as-is
+          body = req.body;
+        } else if (req.body && typeof req.body === "object") {
+          // Body was parsed as JSON by Vercel - we need to reconstruct it
+          // Use JSON.stringify with no spaces to match Shopify's format as closely as possible
+          // Note: This might still fail if Shopify's JSON formatting differs
+          // The ideal solution is to prevent Vercel from parsing webhook bodies
+          body = JSON.stringify(req.body);
+          console.warn("[WEBHOOK BODY] Body was parsed as JSON, reconstructing. HMAC verification may fail if formatting differs.");
+        } else {
+          // Body is in an unexpected format
+          body = undefined;
+          console.warn("[WEBHOOK BODY] Unexpected body type:", typeof req.body);
+        }
+      } else {
+        // For non-webhook requests, use normal body handling
+        body = typeof req.body === "string" ? req.body : JSON.stringify(req.body);
+      }
+    } else {
+      body = undefined;
+    }
+
     // Create a Request object compatible with React Router
     const request = new Request(url, {
       method: req.method || "GET",
       headers: new Headers(req.headers),
-      body:
-        req.method !== "GET" && req.method !== "HEAD" && req.body
-          ? (typeof req.body === "string" ? req.body : JSON.stringify(req.body))
-          : undefined,
+      body: body,
     });
 
     // Get or create the request handler
