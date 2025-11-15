@@ -23,12 +23,25 @@ export const action = async ({ request }) => {
       'x-shopify-shop-domain': request.headers.get('x-shopify-shop-domain'),
       'x-shopify-hmac-sha256': request.headers.get('x-shopify-hmac-sha256') ? 'present' : 'missing',
       'content-type': request.headers.get('content-type'),
+      'content-length': request.headers.get('content-length'),
     },
+    // Check if API secret is available (don't log the actual value!)
+    hasApiSecret: !!process.env.SHOPIFY_API_SECRET,
+    apiSecretLength: process.env.SHOPIFY_API_SECRET?.length || 0,
+    nodeEnv: process.env.NODE_ENV,
   });
+
+  // Check if SHOPIFY_API_SECRET is available
+  if (!process.env.SHOPIFY_API_SECRET) {
+    console.error("[WEBHOOK ERROR] SHOPIFY_API_SECRET is not set in environment variables");
+    return new Response("Internal Server Error: Missing API secret", { status: 500 });
+  }
 
   try {
     // Extract payload from authenticate.webhook() - don't call request.json() separately!
+    console.log(`[WEBHOOK DEBUG] Attempting to authenticate webhook...`);
     const { shop, topic, payload } = await authenticate.webhook(request);
+    console.log(`[WEBHOOK DEBUG] Authentication successful for ${shop}`);
     
     console.log(`[WEBHOOK] Received ${topic} webhook for ${shop}`, {
       orderId: payload?.id,
@@ -210,8 +223,23 @@ export const action = async ({ request }) => {
         shop: !!request.headers.get('x-shopify-shop-domain'),
         hmac: !!request.headers.get('x-shopify-hmac-sha256'),
       },
+      // Log HMAC header details (first 20 chars only for security)
+      hmacHeader: request.headers.get('x-shopify-hmac-sha256')?.substring(0, 20) || 'missing',
+      // Check if this is an authentication error
+      isAuthError: error.message?.includes('Unauthorized') || error.message?.includes('401') || error.name === 'UnauthorizedError',
+      // Environment check
+      hasApiSecret: !!process.env.SHOPIFY_API_SECRET,
+      apiSecretLength: process.env.SHOPIFY_API_SECRET?.length || 0,
     });
-    // Return 200 to prevent Shopify from retrying
+    
+    // If it's an authentication error, return 401 so Shopify knows to retry
+    // Otherwise return 200 to prevent infinite retries
+    if (error.message?.includes('Unauthorized') || error.message?.includes('401') || error.name === 'UnauthorizedError') {
+      console.error("[WEBHOOK ERROR] Authentication failed - returning 401");
+      return new Response("Unauthorized", { status: 401 });
+    }
+    
+    // Return 200 for other errors to prevent Shopify from retrying
     return new Response(null, { status: 200 });
   }
 };
