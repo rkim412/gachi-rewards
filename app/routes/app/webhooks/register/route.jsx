@@ -1,4 +1,4 @@
-import { authenticate, registerWebhooks } from "../shopify.server.js";
+import { authenticate, registerWebhooks } from "../../../shopify.server.js";
 
 /**
  * Admin route to manually register webhooks
