@@ -2,7 +2,7 @@
 
 client_id = "f232a78339525e79f08b9bcec3b61b8f"
 name = "Gachi Rewards"
-application_url = "https://gachi-rewards.vercel.app"
+application_url = "https://gachi-rewards-ryans-projects-59100e10.vercel.app"  # Use working URL
 embedded = true
 
 [build]
@@ -25,14 +25,12 @@ api_version = "2025-10"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "write_products,read_customers,write_customers,read_orders,write_discounts,read_discounts,write_app_proxy"
-
-# App Proxy Configuration
-# Routes customer-facing requests through Shopify for security
-[app_proxy]
-url = "https://gachi-rewards.vercel.app/apps/gachi-rewards"
-subpath = "gachi-rewards"
-prefix = "apps"
+scopes = "read_customers,read_discounts,read_orders,write_app_proxy,write_customers,write_discounts,write_products"
 
 [auth]
-redirect_urls = [ "https://gachi-rewards.vercel.app/auth" ]
+redirect_urls = [ "https://gachi-rewards-ryans-projects-59100e10.vercel.app/auth" ]  # Working URL + /auth
+
+[app_proxy]
+url = "https://gachi-rewards-ryans-projects-59100e10.vercel.app/apps/gachi-rewards"  # Working URL + /apps/gachi-rewards
+subpath = "gachi-rewards"
+prefix = "apps"
