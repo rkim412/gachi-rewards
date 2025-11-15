@@ -11,24 +11,6 @@ import prisma from "../db.server.js";
  * Topic: orders/create
  * URI: /webhooks/orders/create
  */
-
-// GET handler for debugging - verify endpoint is accessible
-export const loader = async ({ request }) => {
-  return new Response(
-    JSON.stringify({
-      message: "Webhook endpoint is active",
-      method: request.method,
-      url: request.url,
-      timestamp: new Date().toISOString(),
-      note: "This endpoint accepts POST requests from Shopify webhooks",
-    }),
-    {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    }
-  );
-};
-
 export const action = async ({ request }) => {
   // Log immediately - BEFORE authentication to catch all requests
   // This will help diagnose if requests are reaching the server
