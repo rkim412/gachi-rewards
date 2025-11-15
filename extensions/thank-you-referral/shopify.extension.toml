@@ -11,7 +11,7 @@ name = "thank-you-referral"
 handle = "thank-you-referral"
 
 [[extensions.targeting]]
-target = "purchase.thank-you.block.render"
+target = "purchase.checkout.thank-you.block.render"
 module = "./src/index.jsx"
 
 [extensions.settings]

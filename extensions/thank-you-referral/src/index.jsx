@@ -7,7 +7,7 @@ import {
   Banner,
 } from "@shopify/ui-extensions-react/checkout";
 
-export default reactExtension("purchase.thank-you.block.render", (api) => (
+export default reactExtension("purchase.checkout.thank-you.block.render", (api) => (
   <ReferralThankYou api={api} />
 ));
 
