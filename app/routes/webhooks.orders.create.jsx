@@ -13,10 +13,13 @@ import prisma from "../db.server.js";
  */
 export const action = async ({ request }) => {
   try {
-    const { shop, topic } = await authenticate.webhook(request);
+    // Extract payload from authenticate.webhook() - don't call request.json() separately!
+    const { shop, topic, payload } = await authenticate.webhook(request);
+    
+    console.log(`[WEBHOOK] Received ${topic} webhook for ${shop}`); // Add logging to verify webhook is called
 
     if (topic === "orders/create") {
-      const order = await request.json();
+      const order = payload; // Use payload directly, not request.json()
 
       // ============================================
       // AUTO-CREATE REFERRAL CODE FOR NEW CUSTOMERS
