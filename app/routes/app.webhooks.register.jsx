@@ -57,3 +57,13 @@ export const loader = async ({ request }) => {
   }
 };
 
+/**
+ * Default component - required by React Router v7
+ * This route primarily returns JSON from the loader, but a component is required
+ * for the route to be recognized by React Router's file-based routing.
+ */
+export default function WebhookRegister() {
+  // This component is required but won't render since loader returns Response directly
+  return null;
+}
+
