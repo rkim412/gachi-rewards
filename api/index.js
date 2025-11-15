@@ -443,7 +443,30 @@ async function getRequestHandler() {
           console.error("❌ Error querying static handler:", queryError);
           // Fallback context - use dataRoutes if available
           const dataRoutes = staticHandler?.dataRoutes || routes;
+          
+          // Create a minimal context for error cases
+          const fallbackContext = {
+            url: request.url,
+            matches: [],
+            loaderData: {},
+            actionData: {},
+            errors: null,
+          };
+          
+          // Create router even in fallback case
+          let router;
+          try {
+            router = createStaticRouter(dataRoutes, fallbackContext);
+            console.log("✅ Created router in fallback error handler");
+          } catch (routerError) {
+            console.error("❌ Failed to create router in fallback:", routerError);
+            // If we can't create router, we need to return an error
+            return new Response("Internal Server Error: Could not create router", { status: 500 });
+          }
+          
           reactRouterContext = {
+            ...fallbackContext,
+            router: router,  // Add router to context
             routes: dataRoutes,
             dataRoutes: dataRoutes,
             build: {
@@ -454,17 +477,9 @@ async function getRequestHandler() {
               publicPath: build.publicPath || "/",
               assetsBuildDirectory: build.assetsBuildDirectory || "build/client",
             },
-            staticHandlerContext: {
-              url: request.url,
-              matches: [],
-              loaderData: {},
-              actionData: {},
-              errors: null,
-              routes: dataRoutes,
-              dataRoutes: dataRoutes,
-            },
+            staticHandlerContext: fallbackContext,
           };
-          console.warn("⚠️  Using fallback context structure");
+          console.warn("⚠️  Using fallback context structure with router");
         }
         
         // Ensure reactRouterContext is never undefined
