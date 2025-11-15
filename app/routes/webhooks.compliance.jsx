@@ -10,6 +10,24 @@ import prisma from "../db.server.js";
  * 
  * These webhooks are mandatory for public apps (GDPR compliance)
  */
+
+/**
+ * Loader for GET requests - webhooks only accept POST
+ * Prevents routing errors when someone visits the webhook URL in a browser
+ */
+export const loader = async ({ request }) => {
+  return new Response(
+    JSON.stringify({ 
+      error: "Webhooks only accept POST requests",
+      message: "This endpoint is for Shopify webhook delivery only. Use POST method."
+    }),
+    { 
+      status: 405, // Method Not Allowed
+      headers: { "Content-Type": "application/json" }
+    }
+  );
+};
+
 export const action = async ({ request }) => {
   try {
     const { shop, topic, payload } = await authenticate.webhook(request);

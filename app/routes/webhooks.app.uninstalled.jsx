@@ -1,6 +1,23 @@
 import { authenticate } from "../shopify.server";
 import db from "../db.server";
 
+/**
+ * Loader for GET requests - webhooks only accept POST
+ * Prevents routing errors when someone visits the webhook URL in a browser
+ */
+export const loader = async ({ request }) => {
+  return new Response(
+    JSON.stringify({ 
+      error: "Webhooks only accept POST requests",
+      message: "This endpoint is for Shopify webhook delivery only. Use POST method."
+    }),
+    { 
+      status: 405, // Method Not Allowed
+      headers: { "Content-Type": "application/json" }
+    }
+  );
+};
+
 export const action = async ({ request }) => {
   const { shop, session, topic } = await authenticate.webhook(request);
 
