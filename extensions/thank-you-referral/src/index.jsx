@@ -12,12 +12,16 @@ export default reactExtension("purchase.thank-you.block.render", (api) => (
 ));
 
 function ReferralThankYou({ api }) {
-  const [loading, setLoading] = React.useState(false);
+  const [loading, setLoading] = React.useState(true); // Start with true!
   const [referralLink, setReferralLink] = React.useState(null);
   const [referralCode, setReferralCode] = React.useState(null);
   const [error, setError] = React.useState(null);
 
   React.useEffect(() => {
+    console.log("[Thank You Extension] Component mounted, API:", api);
+    console.log("[Thank You Extension] orderConfirmation:", api?.orderConfirmation);
+    console.log("[Thank You Extension] buyerIdentity:", api?.buyerIdentity);
+    
     // Delay fetch to ensure extension is fully initialized
     const timer = setTimeout(() => {
       fetchReferralLink();
@@ -28,24 +32,48 @@ function ReferralThankYou({ api }) {
 
   const fetchReferralLink = async () => {
     try {
+      console.log("[Thank You Extension] Starting fetchReferralLink");
       setLoading(true);
       setError(null);
 
       // Access orderConfirmation from OrderConfirmationApi
-      const orderConfirmation = api.orderConfirmation?.value;
-      const order = orderConfirmation?.order;
+      let orderConfirmation = null;
+      let order = null;
+      
+      try {
+        orderConfirmation = api?.orderConfirmation?.value;
+        order = orderConfirmation?.order;
+        console.log("[Thank You Extension] Order confirmation:", orderConfirmation);
+        console.log("[Thank You Extension] Order:", order);
+      } catch (apiError) {
+        console.warn("[Thank You Extension] Error accessing orderConfirmation:", apiError);
+      }
       
       // Access buyerIdentity for customer information
-      // buyerIdentity itself is not a SubscribableSignalLike, it's a BuyerIdentity object
-      const buyerIdentity = api.buyerIdentity;
-      const customer = buyerIdentity?.customer?.value;
+      let buyerIdentity = null;
+      let customer = null;
+      
+      try {
+        buyerIdentity = api?.buyerIdentity;
+        customer = buyerIdentity?.customer?.value;
+        console.log("[Thank You Extension] Buyer identity:", buyerIdentity);
+        console.log("[Thank You Extension] Customer:", customer);
+      } catch (apiError) {
+        console.warn("[Thank You Extension] Error accessing buyerIdentity:", apiError);
+      }
       
       // Access settings from StandardApi
-      const settings = api.settings?.value;
+      let settings = null;
       let apiUrl = "/apps/gachi-rewards/api/generate";
       
-      if (settings?.api_url) {
-        apiUrl = settings.api_url;
+      try {
+        settings = api?.settings?.value;
+        if (settings?.api_url) {
+          apiUrl = settings.api_url;
+        }
+        console.log("[Thank You Extension] Settings:", settings);
+      } catch (apiError) {
+        console.warn("[Thank You Extension] Error accessing settings:", apiError);
       }
 
       // Build query parameters
@@ -65,7 +93,7 @@ function ReferralThankYou({ api }) {
       // Make API call - App Proxy will add shop, timestamp, signature automatically
       const proxyUrl = `${apiUrl}${params.toString() ? `?${params.toString()}` : ''}`;
       
-      console.log("[Order Status] Fetching referral link from:", proxyUrl);
+      console.log("[Thank You Extension] Fetching referral link from:", proxyUrl);
       
       const response = await fetch(proxyUrl, {
         method: "GET",
@@ -74,14 +102,16 @@ function ReferralThankYou({ api }) {
         },
       });
 
+      console.log("[Thank You Extension] Response status:", response.status);
+
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("API error:", response.status, errorText);
+        console.error("[Thank You Extension] API error:", response.status, errorText);
         throw new Error(`API returned ${response.status}: ${errorText}`);
       }
 
       const data = await response.json();
-      console.log("[Order Status] Referral API response:", data);
+      console.log("[Thank You Extension] Referral API response:", data);
 
       if (data.success && data.referralLink) {
         setReferralLink(data.referralLink);
@@ -90,7 +120,7 @@ function ReferralThankYou({ api }) {
         setError(data.error || "Failed to generate referral link");
       }
     } catch (err) {
-      console.error("Error fetching referral link:", err);
+      console.error("[Thank You Extension] Error fetching referral link:", err);
       setError(`Failed to load referral link: ${err.message}`);
     } finally {
       setLoading(false);
