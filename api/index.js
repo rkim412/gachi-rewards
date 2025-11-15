@@ -413,7 +413,22 @@ async function getRequestHandler() {
           
           // Create static router using createStaticRouter as per React Router v7 docs
           // createStaticRouter(handler.dataRoutes, context)
-          const router = createStaticRouter(dataRoutes, queryContext);
+          let router;
+          try {
+            router = createStaticRouter(dataRoutes, queryContext);
+            
+            // Validate router was created successfully
+            if (!router) {
+              console.error("❌ createStaticRouter returned null/undefined");
+              throw new Error("createStaticRouter returned null");
+            }
+            
+            console.log("✅ Router created successfully");
+          } catch (routerError) {
+            console.error("❌ Failed to create router:", routerError);
+            // Fall through to fallback handler
+            throw routerError;
+          }
           
           reactRouterContext = {
             ...queryContext, // Routing state from query
@@ -430,13 +445,17 @@ async function getRequestHandler() {
             },
           };
           
-          console.log("✅ Created context with dataRoutes:", {
+          // Final validation - ensure router is in context
+          if (!reactRouterContext.router) {
+            console.error("❌ Router missing from reactRouterContext after creation");
+            throw new Error("Router was not added to reactRouterContext");
+          }
+          
+          console.log("✅ Created context with router:", {
             hasContext: !!reactRouterContext,
+            hasRouter: !!reactRouterContext.router,
             hasRoutes: !!(reactRouterContext && reactRouterContext.routes),
             hasDataRoutes: !!(reactRouterContext && reactRouterContext.dataRoutes),
-            hasBuildRoutes: !!(reactRouterContext && reactRouterContext.build && reactRouterContext.build.routes),
-            hasBuildDataRoutes: !!(reactRouterContext && reactRouterContext.build && reactRouterContext.build.dataRoutes),
-            hasStaticHandlerRoutes: !!(reactRouterContext && reactRouterContext.staticHandlerContext && reactRouterContext.staticHandlerContext.routes),
             contextKeys: reactRouterContext ? Object.keys(reactRouterContext) : [],
           });
         } catch (queryError) {
@@ -479,6 +498,13 @@ async function getRequestHandler() {
             },
             staticHandlerContext: fallbackContext,
           };
+          
+          // Validate router is in fallback context
+          if (!reactRouterContext.router) {
+            console.error("❌ Router missing from fallback reactRouterContext");
+            return new Response("Internal Server Error: Router missing from context", { status: 500 });
+          }
+          
           console.warn("⚠️  Using fallback context structure with router");
         }
         
@@ -486,6 +512,13 @@ async function getRequestHandler() {
         if (!reactRouterContext) {
           console.error("❌ reactRouterContext is undefined after query");
           return new Response("Internal Server Error: Invalid router context", { status: 500 });
+        }
+        
+        // Final validation - ensure router is present before passing to handleRequest
+        if (!reactRouterContext.router) {
+          console.error("❌ Router is missing from reactRouterContext before handleRequest");
+          console.error("Context keys:", Object.keys(reactRouterContext));
+          return new Response("Internal Server Error: Router missing from context", { status: 500 });
         }
         
         try {
