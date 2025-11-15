@@ -7,11 +7,11 @@ import {
   Banner,
 } from "@shopify/ui-extensions-react/checkout";
 
-export default reactExtension("purchase.thank-you.block.render", () => (
-  <ReferralThankYou />
+export default reactExtension("purchase.thank-you.block.render", (api) => (
+  <ReferralThankYou api={api} />
 ));
 
-function ReferralThankYou() {
+function ReferralThankYou({ api }) {
   const [loading, setLoading] = React.useState(false);
   const [referralLink, setReferralLink] = React.useState(null);
   const [referralCode, setReferralCode] = React.useState(null);
@@ -23,46 +23,44 @@ function ReferralThankYou() {
       fetchReferralLink();
     }, 100);
     return () => clearTimeout(timer);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount
 
   const fetchReferralLink = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Use global shopify object (API version 2025-10+)
-      // No need for useApi() hook anymore!
-      let order = null;
-      let customer = null;
+      // Access orderConfirmation from OrderConfirmationApi
+      const orderConfirmation = api.orderConfirmation?.value;
+      const order = orderConfirmation?.order;
+      
+      // Access buyerIdentity for customer information
+      // buyerIdentity itself is not a SubscribableSignalLike, it's a BuyerIdentity object
+      const buyerIdentity = api.buyerIdentity;
+      const customer = buyerIdentity?.customer?.value;
+      
+      // Access settings from StandardApi
+      const settings = api.settings?.value;
       let apiUrl = "/apps/gachi-rewards/api/generate";
-
-      try {
-        // Access purchase data via global shopify object
-        if (typeof shopify !== 'undefined' && shopify.purchase) {
-          order = await shopify.purchase;
-          customer = order?.customer;
-        }
-      } catch (purchaseError) {
-        console.warn("Could not get purchase data:", purchaseError);
-      }
-
-      // Get settings from global shopify object
-      try {
-        if (typeof shopify !== 'undefined' && shopify.settings) {
-          const settings = await shopify.settings;
-          if (settings?.api_url) {
-            apiUrl = settings.api_url;
-          }
-        }
-      } catch (settingsError) {
-        console.warn("Could not get settings, using default:", settingsError);
+      
+      if (settings?.api_url) {
+        apiUrl = settings.api_url;
       }
 
       // Build query parameters
       const params = new URLSearchParams();
       if (order?.id) params.append("orderId", order.id);
+      if (orderConfirmation?.number) params.append("orderNumber", orderConfirmation.number);
+      
+      // Get customer info from buyerIdentity
       if (customer?.id) params.append("customerId", customer.id);
       if (customer?.email) params.append("customerEmail", customer.email);
+      
+      // Fallback to buyerIdentity email if customer object not available
+      if (!customer?.email && buyerIdentity?.email?.value) {
+        params.append("customerEmail", buyerIdentity.email.value);
+      }
 
       // Make API call - App Proxy will add shop, timestamp, signature automatically
       const proxyUrl = `${apiUrl}${params.toString() ? `?${params.toString()}` : ''}`;
