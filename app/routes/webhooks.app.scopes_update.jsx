@@ -20,3 +20,10 @@ export const action = async ({ request }) => {
 
   return new Response();
 };
+
+/**
+ * Default component - required by React Router v7
+ */
+export default function AppScopesUpdateWebhook() {
+  return null;
+}

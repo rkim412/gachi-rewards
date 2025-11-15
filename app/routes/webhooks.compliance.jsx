@@ -183,3 +183,9 @@ export const action = async ({ request }) => {
   }
 };
 
+/**
+ * Default component - required by React Router v7
+ */
+export default function ComplianceWebhook() {
+  return null;
+}

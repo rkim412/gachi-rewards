@@ -244,3 +244,12 @@ export const action = async ({ request }) => {
   }
 };
 
+/**
+ * Default component - required by React Router v7 for route discovery
+ * Webhooks use action for POST requests, but a component is required
+ * for the route to be recognized by React Router's file-based routing.
+ * This component will never render since webhooks are POST-only.
+ */
+export default function OrdersCreateWebhook() {
+  return null;
+}
