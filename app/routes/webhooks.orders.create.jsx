@@ -90,6 +90,7 @@ export const action = async ({ request }) => {
     return new Response(null, { status: 200 });
   } catch (error) {
     // Log detailed error information
+    console.error("[WEBHOOK ERROR] Raw error object:", error);
     console.error("[WEBHOOK ERROR] Webhook processing failed:", {
       error: error.message,
       stack: error.stack,
