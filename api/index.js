@@ -9,6 +9,7 @@
 // Import createStaticHandler and createStaticRouter from react-router
 // In React Router v7, these should be available from the react-router package
 import { createStaticHandler, createStaticRouter } from "react-router";
+import getRawBody from 'raw-body';
 
 // Lazy load the build and create request handler
 let requestHandler;
@@ -637,6 +638,27 @@ async function getRequestHandler() {
 }
 
 export default async function handler(req, res) {
+  // LOG IMMEDIATELY - before anything else to catch ALL requests
+  // This helps diagnose if requests are reaching the handler
+  const requestPath = req.url ? new URL(req.url, `https://${req.headers.host || "unknown"}`).pathname : "/";
+  const isWebhookPath = requestPath.startsWith("/webhooks/");
+  const hasShopifyTopic = !!req.headers["x-shopify-topic"];
+  const hasShopifyHmac = !!req.headers["x-shopify-hmac-sha256"];
+  
+  console.log("[API HANDLER] Request received:", {
+    method: req.method,
+    url: req.url,
+    pathname: requestPath,
+    isWebhookPath: isWebhookPath,
+    hasShopifyTopic: hasShopifyTopic,
+    hasShopifyHmac: hasShopifyHmac,
+    hasBody: !!req.body,
+    bodyType: typeof req.body,
+    bodyIsBuffer: Buffer.isBuffer(req.body),
+    contentType: req.headers["content-type"],
+    timestamp: new Date().toISOString(),
+  });
+
   try {
     // Create a proper URL from the request
     const protocol = req.headers["x-forwarded-proto"] || "https";
@@ -646,86 +668,56 @@ export default async function handler(req, res) {
     // Check if this is a webhook request (Shopify webhooks have x-shopify-topic header)
     const isWebhook = req.headers["x-shopify-topic"] || url.pathname.startsWith("/webhooks/");
     
+    if (isWebhook) {
+      console.log("[API HANDLER] Webhook detected:", {
+        pathname: url.pathname,
+        method: req.method,
+        hasTopicHeader: !!req.headers["x-shopify-topic"],
+        hasHmacHeader: !!req.headers["x-shopify-hmac-sha256"],
+        topic: req.headers["x-shopify-topic"] || "missing",
+        shop: req.headers["x-shopify-shop-domain"] || "missing",
+      });
+    }
+    
     // Handle request body - critical for webhook HMAC verification
     let body;
     
-    // For webhook requests, read raw body from stream to preserve exact bytes for HMAC verification
-    // Shopify's HMAC verification requires the exact raw body bytes - any parsing/reconstruction will fail
+    // For webhook requests, use raw-body library to get the raw Buffer
+    // This is the recommended approach from Shopify docs and handles stream reading reliably
+    // Following Shopify best practices: https://shopify.dev/docs/apps/build/webhooks/subscribe/https
     if (isWebhook && (req.method === "POST" || req.method === "PUT" || req.method === "PATCH")) {
       try {
-        // Priority 1: Try to read raw body from request stream (if not already consumed)
-        // This preserves the exact bytes that Shopify sent for HMAC verification
-        if (req.readable && typeof req.on === 'function' && !req.readableEnded) {
-          const chunks = [];
-          
-          // Read from stream
-          await new Promise((resolve, reject) => {
-            // Set timeout to prevent hanging
-            const timeout = setTimeout(() => {
-              reject(new Error("Stream read timeout"));
-            }, 5000);
-            
-            req.on('data', (chunk) => {
-              chunks.push(chunk);
-            });
-            
-            req.on('end', () => {
-              clearTimeout(timeout);
-              resolve();
-            });
-            
-            req.on('error', (err) => {
-              clearTimeout(timeout);
-              reject(err);
-            });
-            
-            // If stream is already ended, resolve immediately
-            if (req.readableEnded) {
-              clearTimeout(timeout);
-              resolve();
-            }
-          });
-          
-          if (chunks.length > 0) {
-            // Convert buffer chunks to UTF-8 string
-            body = Buffer.concat(chunks).toString('utf8');
-            console.log("[WEBHOOK BODY] ✅ Read raw body from stream, length:", body.length);
-          } else {
-            // Stream was empty or already consumed, fall through to other methods
-            throw new Error("Stream was empty or already consumed");
-          }
-        } 
-        // Priority 2: Check if body is already a raw string (Vercel might provide it this way)
-        else if (typeof req.body === "string") {
-          body = req.body;
-          console.log("[WEBHOOK BODY] ✅ Using req.body as raw string, length:", body.length);
-        } 
-        // Priority 3: Body was parsed as JSON - this will likely fail HMAC verification
-        else if (req.body && typeof req.body === "object") {
-          // Last resort: try to reconstruct, but this will likely fail HMAC verification
-          // because JSON.stringify may produce different formatting than Shopify's original
-          body = JSON.stringify(req.body);
-          console.error("[WEBHOOK BODY] ❌ Body was parsed as JSON by Vercel. HMAC verification will likely FAIL.");
-          console.error("[WEBHOOK BODY] This happens when Vercel parses the body before our handler runs.");
-          console.error("[WEBHOOK BODY] Solution: Configure Vercel to not parse webhook request bodies.");
-        } 
-        // Priority 4: Body is missing or in unexpected format
-        else {
-          body = undefined;
-          console.warn("[WEBHOOK BODY] ⚠️ Body is missing or in unexpected format:", typeof req.body);
-        }
-      } catch (streamError) {
-        console.error("[WEBHOOK BODY] Error reading raw body from stream:", streamError.message);
+        // Use raw-body library to read raw body Buffer
+        // This handles the stream reading for us and works even if Vercel has started parsing
+        // encoding: false returns a Buffer (not string) to preserve exact bytes for HMAC
+        const rawBodyBuffer = await getRawBody(req, {
+          length: req.headers['content-length'],
+          limit: '10mb', // Adjust if needed for large webhooks
+          encoding: false, // Return Buffer, not string - critical for HMAC verification
+        });
         
-        // Fallback: try req.body if stream reading failed
-        if (typeof req.body === "string") {
+        // Convert Buffer to UTF-8 string for React Router Request
+        body = rawBodyBuffer.toString('utf8');
+        console.log("[WEBHOOK BODY] ✅ Read raw body using raw-body library, length:", body.length);
+        
+      } catch (rawBodyError) {
+        console.error("[WEBHOOK BODY] Error reading raw body:", rawBodyError.message);
+        
+        // Fallback: Check if body is already available as Buffer or string
+        if (Buffer.isBuffer(req.body)) {
+          body = req.body.toString('utf8');
+          console.log("[WEBHOOK BODY] Fallback: Using req.body as Buffer, length:", body.length);
+        } else if (typeof req.body === "string") {
           body = req.body;
           console.log("[WEBHOOK BODY] Fallback: Using req.body as string, length:", body.length);
         } else if (req.body && typeof req.body === "object") {
+          // Last resort - but HMAC will likely fail
           body = JSON.stringify(req.body);
-          console.error("[WEBHOOK BODY] Fallback: Body was parsed as JSON. HMAC verification will likely FAIL.");
+          console.error("[WEBHOOK BODY] ❌ CRITICAL: Body was parsed as JSON. HMAC verification will FAIL.");
+          console.error("[WEBHOOK BODY] Shopify requires raw body bytes for HMAC verification.");
         } else {
           body = undefined;
+          console.error("[WEBHOOK BODY] ❌ Body is missing or in unexpected format");
         }
       }
     } else if (req.method !== "GET" && req.method !== "HEAD" && req.body !== undefined) {
