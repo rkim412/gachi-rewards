@@ -191,3 +191,23 @@ model ReferralConfig {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt  // Auto-updated on changes
 }
+
+// WebhookQueue: Queue for processing webhooks asynchronously
+// Ensures fast response to Shopify (< 5 seconds) while processing can take longer
+model WebhookQueue {
+  id        Int @id @default(autoincrement())
+  topic     String  // Webhook topic: "orders/create", "app/uninstalled", etc.
+  shop      String  // Shop domain: "store.myshopify.com"
+  payload   String  @db.Text  // JSON string of webhook payload
+  status    String  @default("pending")  // pending, processing, completed, failed
+  attempts  Int     @default(0)  // Number of processing attempts
+  error     String? @db.Text  // Error message if processing failed
+  processedAt DateTime?  // When processing completed
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Indexes for performance
+  @@index([status, createdAt])  // Find pending webhooks to process
+  @@index([shop, topic])        // Shop-specific queries
+  @@index([status])             // Status queries
+}
