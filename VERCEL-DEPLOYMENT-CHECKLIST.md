@@ -88,18 +88,24 @@ Add these **one by one**:
 - **Value**: `write_products,read_customers,write_customers,read_orders,write_discounts,read_discounts,write_app_proxy`
 - **Environments**: ✅ Production, ✅ Preview, ✅ Development
 
-### 5. DATABASE_URL
+### 5. DATABASE_URL (Prisma Accelerate)
 - **Key**: `DATABASE_URL`
-- **Value**: Paste the **`POSTGRES_PRISMA_URL`** you copied in Step 3
-- **⚠️ Important**: Must use `POSTGRES_PRISMA_URL`, not `POSTGRES_URL`
+- **Value**: Prisma Accelerate `prisma://` connection string
+  - Go to https://cloud.prisma.io → Accelerate → Create API key → copy the prisma:// URL
 - **Environments**: ✅ Production, ✅ Preview, ✅ Development
 
-### 6. NODE_ENV
+### 6. DIRECT_DATABASE_URL
+- **Key**: `DIRECT_DATABASE_URL`
+- **Value**: Raw Postgres connection string (Vercel Dashboard → Storage → Postgres → Connection string)
+- **Why**: Prisma migrate/CLI needs a direct Postgres connection when `DATABASE_URL` uses Accelerate
+- **Environments**: ✅ Production, ✅ Preview, ✅ Development
+
+### 7. NODE_ENV
 - **Key**: `NODE_ENV`
 - **Value**: `production`
 - **Environments**: ✅ Production only
 
-### 7. WEBHOOK_SECRET (Optional but Recommended)
+### 8. WEBHOOK_SECRET (Optional but Recommended)
 - **Key**: `WEBHOOK_SECRET`
 - **Value**: From Partners Dashboard → Your App → App setup → Webhooks → Webhook signing secret
 - **Environments**: ✅ Production, ✅ Preview, ✅ Development
@@ -259,14 +265,16 @@ datasource db {
 
 ### Build Fails: "DATABASE_URL not set"
 
-**Fix**: Add `DATABASE_URL` environment variable in Vercel with `POSTGRES_PRISMA_URL` value.
+**Fix**: Add BOTH `DATABASE_URL` (prisma:// Accelerate URL) **and** `DIRECT_DATABASE_URL` (postgres://) in Vercel.
+- `DATABASE_URL`: Copy from Prisma Accelerate (https://cloud.prisma.io → Accelerate → API key)
+- `DIRECT_DATABASE_URL`: Copy from Vercel Postgres → Connection string
 
 ### Migration Fails: "Connection refused"
 
 **Fix**: 
-- Verify `DATABASE_URL` uses `POSTGRES_PRISMA_URL` (not `POSTGRES_URL`)
-- Check database is created and accessible
-- Verify connection string format
+- Verify `DIRECT_DATABASE_URL` uses the latest Postgres credentials from Vercel
+- Ensure the database exists and is accessible (Vercel → Storage → Postgres)
+- Confirm `DATABASE_URL` points to Prisma Accelerate (prisma://…)
 
 ### App Returns 401: "Invalid request signature"
 

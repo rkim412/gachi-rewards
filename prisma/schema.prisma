@@ -6,12 +6,13 @@ generator client {
 }
 
 // Database Configuration
-// Production: Uses PostgreSQL via DATABASE_URL from Vercel Postgres
+// Production: Uses PostgreSQL via Prisma Accelerate (DATABASE_URL=prisma://...)
 // Local Dev: Can use SQLite by changing provider to "sqlite" and url to "file:./dev.sqlite"
-// Note: Prisma auto-detects provider from DATABASE_URL format, but explicit is clearer
+// Note: directUrl ensures Prisma CLI (migrate) connects directly to Postgres
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_DATABASE_URL")
 }
 
 // ============================================================================

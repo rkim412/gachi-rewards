@@ -18,12 +18,21 @@ if (!process.env.DATABASE_URL) {
   process.exit(0); // Exit successfully so build can continue
 }
 
-// Validate DATABASE_URL format
+// Validate DATABASE_URL format (now supports Prisma Accelerate prisma:// URLs)
 const dbUrl = process.env.DATABASE_URL;
-if (!dbUrl.startsWith('postgres://') && !dbUrl.startsWith('postgresql://')) {
-  console.error('❌ ERROR: DATABASE_URL must start with postgres:// or postgresql://');
+const isPrismaUrl = dbUrl.startsWith('prisma://');
+const isPostgresUrl = dbUrl.startsWith('postgres://') || dbUrl.startsWith('postgresql://');
+
+if (!isPrismaUrl && !isPostgresUrl) {
+  console.error('❌ ERROR: DATABASE_URL must start with prisma://, postgres:// or postgresql://');
   console.error(`   Current value starts with: ${dbUrl.substring(0, 20)}...`);
-  console.error('   Please use POSTGRES_PRISMA_URL from Vercel Postgres settings.');
+  console.error('   Please use the Prisma Accelerate URL (prisma://) or the direct Postgres URL.');
+  process.exit(1);
+}
+
+if (isPrismaUrl && !process.env.DIRECT_DATABASE_URL) {
+  console.error('❌ ERROR: DIRECT_DATABASE_URL is required when using Prisma Accelerate (prisma://)');
+  console.error('   Set DIRECT_DATABASE_URL to the raw Postgres connection string from Vercel Postgres.');
   process.exit(1);
 }
 

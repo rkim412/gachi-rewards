@@ -95,8 +95,11 @@ Required environment variables:
 - `SHOPIFY_API_SECRET` - Your Shopify app secret
 - `SHOPIFY_APP_URL` - Your app URL (e.g., `https://your-app.vercel.app`)
 - `SCOPES` - Comma-separated Shopify scopes
-- `DATABASE_URL` - PostgreSQL connection string
-  - **For Vercel**: Use `POSTGRES_PRISMA_URL` from Vercel Postgres database
+- `DATABASE_URL` - Prisma Accelerate connection string (prisma://…)
+  - **Production**: Create an Accelerate API key at https://cloud.prisma.io and copy the prisma:// URL
+  - **Local**: Use `file:./prisma/dev.sqlite` or a local Postgres connection string
+- `DIRECT_DATABASE_URL` - Raw Postgres connection string (required when `DATABASE_URL` is prisma://)
+  - Copy from Vercel Postgres → Connection string → `postgres://…`
 - `NODE_ENV` - Set to `production` for production
 
 ## License

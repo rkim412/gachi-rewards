@@ -29,7 +29,7 @@
 
 ### Pre-Deployment Checklist
 
-- [x] Prisma schema uses PostgreSQL with `env("DATABASE_URL")`
+- [x] Prisma schema uses PostgreSQL with `env("DATABASE_URL")` + `env("DIRECT_DATABASE_URL")`
 - [x] Vercel configuration is complete
 - [x] Build scripts are correct (`setup:prod` uses `migrate deploy`)
 - [x] .gitignore excludes unnecessary files
@@ -44,7 +44,8 @@
   - `SHOPIFY_API_SECRET`
   - `SHOPIFY_APP_URL` (your Vercel URL)
   - `SCOPES`
-  - `DATABASE_URL` (from `POSTGRES_PRISMA_URL`)
+  - `DATABASE_URL` (prisma:// from Prisma Accelerate)
+  - `DIRECT_DATABASE_URL` (postgres:// from Vercel Postgres)
   - `NODE_ENV=production`
 - [ ] **Update Shopify Partners Dashboard:**
   - App URL

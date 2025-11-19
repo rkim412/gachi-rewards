@@ -3,8 +3,8 @@
 import { PrismaClient } from "@prisma/client";
 import { withAccelerate } from "@prisma/extension-accelerate";
 
-// Determine if we should use Accelerate (only for production PostgreSQL with prisma:// URL)
-// Note: Vercel Postgres uses postgres:// URL, not prisma://, so Accelerate is optional
+// Determine if we should use Accelerate (true when DATABASE_URL starts with prisma://)
+// With Prisma Accelerate enabled, DATABASE_URL=prisma://… and DIRECT_DATABASE_URL provides raw Postgres connection
 const useAccelerate = 
   process.env.NODE_ENV === "production" && 
   process.env.DATABASE_URL?.startsWith("prisma://");

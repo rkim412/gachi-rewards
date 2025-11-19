@@ -122,7 +122,8 @@ SHOPIFY_API_KEY=your_api_key
 SHOPIFY_API_SECRET=your_api_secret
 SHOPIFY_APP_URL=https://your-app.vercel.app
 SCOPES=write_products,read_customers,write_customers,read_orders,write_discounts,read_discounts,write_app_proxy
-DATABASE_URL=postgres://... (from POSTGRES_PRISMA_URL)
+DATABASE_URL=prisma://accelerate.prisma-data.net/?api_key=...
+DIRECT_DATABASE_URL=postgres://... (from Vercel Postgres connection string)
 NODE_ENV=production
 ```
 

@@ -30,8 +30,8 @@ This document summarizes all the changes made to configure the Gachi Rewards app
 
 - Updated `SHOPIFY_APP_URL` to production Vercel URL
 - Added detailed comments explaining where to get each value
-- Updated `DATABASE_URL` format to show Vercel Postgres format
-- Added note about using `POSTGRES_PRISMA_URL` (not `POSTGRES_URL`)
+- Added Prisma Accelerate guidance: `DATABASE_URL` (prisma://) + `DIRECT_DATABASE_URL` (postgres://)
+- Highlighted that both variables must be set in Vercel
 
 ---
 
@@ -60,7 +60,8 @@ SHOPIFY_API_KEY=your_api_key
 SHOPIFY_API_SECRET=your_api_secret
 SHOPIFY_APP_URL=https://gachi-rewards.vercel.app
 SCOPES=write_products,read_customers,write_customers,read_orders,write_discounts,read_discounts,write_app_proxy
-DATABASE_URL=postgres://... (from POSTGRES_PRISMA_URL)
+DATABASE_URL=prisma://accelerate.prisma-data.net/?api_key=...
+DIRECT_DATABASE_URL=postgres://... (Vercel Postgres connection string)
 NODE_ENV=production
 WEBHOOK_SECRET=your_webhook_secret (optional)
 ```

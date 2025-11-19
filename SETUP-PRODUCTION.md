@@ -87,8 +87,8 @@ Vercel should auto-detect React Router, but verify:
 1. Click on your database
 2. Go to **"Settings"** tab
 3. Find **"Connection String"** section
-4. Copy **`POSTGRES_PRISMA_URL`** (NOT `POSTGRES_URL`)
-   - This includes connection pooling which Prisma needs
+4. Copy **`POSTGRES_PRISMA_URL`** (NOT `POSTGRES_URL`) 
+   - Use this value for `DIRECT_DATABASE_URL`
    - Format: `postgres://default:xxxxx@xxxxx.vercel-storage.com:5432/verceldb?pgbouncer=true&connect_timeout=15`
 
 ---
@@ -124,18 +124,25 @@ Add these variables one by one:
   ```
 - **Environments**: ✅ Production, ✅ Preview, ✅ Development
 
-### 5. DATABASE_URL
+### 5. DATABASE_URL (Prisma Accelerate)
 - **Key**: `DATABASE_URL`
-- **Value**: Paste the **`POSTGRES_PRISMA_URL`** you copied from Step 4
+- **Value**: Prisma Accelerate `prisma://` connection string
+  - Go to https://cloud.prisma.io → Accelerate → Create API key → copy prisma:// URL
 - **Environments**: ✅ Production, ✅ Preview, ✅ Development
-- **⚠️ Important**: Must use `POSTGRES_PRISMA_URL`, not `POSTGRES_URL`
+- **⚠️ Important**: `DATABASE_URL` must start with `prisma://` when using Accelerate
 
-### 6. NODE_ENV
+### 6. DIRECT_DATABASE_URL
+- **Key**: `DIRECT_DATABASE_URL`
+- **Value**: Raw Postgres connection string (from Vercel Postgres → Connection string)
+- **Why**: Prisma CLI/migrations use this direct connection when `DATABASE_URL` uses Accelerate
+- **Environments**: ✅ Production, ✅ Preview, ✅ Development
+
+### 7. NODE_ENV
 - **Key**: `NODE_ENV`
 - **Value**: `production`
 - **Environments**: ✅ Production only
 
-### 7. WEBHOOK_SECRET (Optional but Recommended)
+### 8. WEBHOOK_SECRET (Optional but Recommended)
 - **Key**: `WEBHOOK_SECRET`
 - **Value**: Get from https://partners.shopify.com → Your app → **App setup** → **Webhooks** → Copy **"Webhook signing secret"**
 - **Environments**: ✅ Production, ✅ Preview, ✅ Development
@@ -350,12 +357,13 @@ This deploys:
 ### Database Connection Fails
 
 **Check:**
-- `DATABASE_URL` uses `POSTGRES_PRISMA_URL` (not `POSTGRES_URL`)
+- `DATABASE_URL` is the prisma:// Accelerate URL
+- `DIRECT_DATABASE_URL` matches the latest Postgres credentials (Vercel Storage)
 - Database is running in Vercel Storage
 - Migrations have been run
 
 **Fix:**
-- Verify `DATABASE_URL` in environment variables
+- Verify `DATABASE_URL` and `DIRECT_DATABASE_URL` in Vercel environment variables
 - Run migrations manually if needed: `npx prisma migrate deploy`
 - Check database is accessible
 
@@ -392,7 +400,7 @@ This deploys:
 
 **Fix:**
 - Run migrations manually: `npx prisma migrate deploy`
-- Check `DATABASE_URL` uses `POSTGRES_PRISMA_URL`
+- Ensure `DIRECT_DATABASE_URL` points to the correct Postgres database
 - Verify database is accessible
 
 ---
@@ -401,8 +409,9 @@ This deploys:
 
 - [ ] Project imported to Vercel
 - [ ] Vercel Postgres database created
-- [ ] All environment variables added (7 variables)
-- [ ] `DATABASE_URL` set to `POSTGRES_PRISMA_URL`
+- [ ] All environment variables added (now includes `DIRECT_DATABASE_URL`)
+- [ ] `DATABASE_URL` set to Prisma Accelerate (prisma://) URL
+- [ ] `DIRECT_DATABASE_URL` set to Vercel Postgres connection string
 - [ ] First deployment successful
 - [ ] Database migrations completed
 - [ ] `SHOPIFY_APP_URL` updated with actual Vercel URL
