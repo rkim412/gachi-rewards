@@ -321,7 +321,7 @@ async function getRequestHandler() {
       console.log("⚠️  build.routes not available as array, attempting to import from source...");
       try {
         // Try importing routes from the source app/routes.js file
-        const routesModule = await import("../../app/routes.js");
+        const routesModule = await import("../app/routes.js");
         routes = routesModule.default || routesModule.routes || [];
         // If it's a function, call it
         if (typeof routes === "function") {

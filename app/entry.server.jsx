@@ -1,35 +1,28 @@
 import { PassThrough } from "stream";
 import { renderToPipeableStream } from "react-dom/server";
-import { StaticRouterProvider } from "react-router";
+import { ServerRouter } from "react-router";
 import { createReadableStreamFromReadable } from "@react-router/node";
 import { isbot } from "isbot";
 import { addDocumentResponseHeaders } from "./shopify.server";
 
 export const streamTimeout = 5000;
 
-export default async function handleRequest(
+export default function handleRequest(
   request,
   responseStatusCode,
   responseHeaders,
-  reactRouterContext,
+  routerContext,
 ) {
   addDocumentResponseHeaders(request, responseHeaders);
   const userAgent = request.headers.get("user-agent");
   const callbackName = isbot(userAgent ?? "") ? "onAllReady" : "onShellReady";
 
-  // Extract router and context from reactRouterContext
-  // Following React Router v7 docs: <StaticRouterProvider router={router} context={context} />
-  const router = reactRouterContext.router;
-  const context = reactRouterContext;
-
-  // Ensure router exists
-  if (!router) {
-    throw new Error("Router is missing from reactRouterContext. Expected router property.");
-  }
-
   return new Promise((resolve, reject) => {
     const { pipe, abort } = renderToPipeableStream(
-      <StaticRouterProvider router={router} context={context} />,
+      <ServerRouter
+        context={routerContext}
+        url={request.url}
+      />,
       {
         [callbackName]: () => {
           const body = new PassThrough();

@@ -2,7 +2,7 @@
 
 client_id = "f232a78339525e79f08b9bcec3b61b8f"
 name = "Gachi Rewards"
-application_url = "https://gachi-rewards-ryans-projects-59100e10.vercel.app"  # Use working URL
+application_url = "https://restrictions-catalogue-lined-mile.trycloudflare.com/"  # Local dev tunnel URL
 embedded = true
 
 [build]
@@ -36,9 +36,9 @@ api_version = "2025-10"
 scopes = "read_customers,read_discounts,read_orders,write_app_proxy,write_customers,write_discounts,write_products"
 
 [auth]
-redirect_urls = [ "https://gachi-rewards-ryans-projects-59100e10.vercel.app/auth" ]  # Working URL + /auth
+redirect_urls = [ "https://restrictions-catalogue-lined-mile.trycloudflare.com/auth" ]  # Local dev tunnel URL + /auth
 
 [app_proxy]
-url = "https://gachi-rewards-ryans-projects-59100e10.vercel.app/apps/gachi-rewards"  # Working URL + /apps/gachi-rewards
+url = "https://restrictions-catalogue-lined-mile.trycloudflare.com/apps/gachi-rewards"  # Local dev tunnel URL + /apps/gachi-rewards
 subpath = "gachi-rewards"
 prefix = "apps"
