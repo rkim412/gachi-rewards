@@ -1,10 +1,14 @@
 // Use regular PrismaClient (not edge client)
 // Edge client is only needed for edge runtime environments
 import { PrismaClient } from "@prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
-import pg from "pg";
+import { PrismaNeon } from "@prisma/adapter-neon";
+import { Pool, neonConfig } from "@neondatabase/serverless";
+import ws from "ws";
 
-const { Pool } = pg;
+// Configure WebSocket for environments lacking built-in support (e.g., Vercel serverless)
+neonConfig.webSocketConstructor = ws;
+
+
 
 // Create Prisma client for PostgreSQL (production) or SQLite (local dev)
 // Connection pooling is handled by Neon's built-in connection pooler
@@ -24,13 +28,13 @@ const createPrismaClient = () => {
     throw new Error("DATABASE_URL environment variable is not set");
   }
 
-  // Create PostgreSQL connection pool
+  // Create Neon serverless connection pool
   const pool = new Pool({
     connectionString: databaseUrl,
   });
 
-  // Create Prisma adapter for PostgreSQL
-  const adapter = new PrismaPg(pool);
+  // Create Prisma adapter for Neon (serverless-optimized)
+  const adapter = new PrismaNeon(pool);
 
   // #region agent log
   fetch('http://127.0.0.1:7242/ingest/60c012cc-d459-4e97-97d9-14bc07e6255d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'db.server.js:35',message:'Adapter created',data:{adapterType:adapter?.constructor?.name||'unknown'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
