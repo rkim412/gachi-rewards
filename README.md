@@ -78,10 +78,14 @@ Required environment variables:
 - `SHOPIFY_API_SECRET` - Your Shopify app secret
 - `SHOPIFY_APP_URL` - Your app URL (e.g., `https://your-app.vercel.app`)
 - `SCOPES` - Comma-separated Shopify scopes
-- `DATABASE_URL` - PostgreSQL connection string
-  - **Production**: Use Neon PostgreSQL connection string (pooled connection with `-pooler` in hostname)
+- `DATABASE_URL` - PostgreSQL connection string (pooled - for Prisma Client)
+  - **Production**: Use Neon PostgreSQL pooled connection string (has `-pooler` in hostname)
   - **Local**: Use `file:./prisma/dev.sqlite` for SQLite or a PostgreSQL connection string
-  - Format: `postgresql://user:password@host/database?connect_timeout=15&sslmode=require`
+  - Format: `postgresql://user:password@ep-xxx-pooler.region.aws.neon.tech/dbname?connect_timeout=15&sslmode=require`
+- `DIRECT_URL` - PostgreSQL direct connection string (optional - for Prisma CLI)
+  - **Production**: Use Neon PostgreSQL direct connection string (no `-pooler` in hostname)
+  - Used by Prisma CLI commands (migrations, generate) via `prisma.config.ts`
+  - Format: `postgresql://user:password@ep-xxx.region.aws.neon.tech/dbname?sslmode=require`
 - `NODE_ENV` - Set to `production` for production
 
 ## License

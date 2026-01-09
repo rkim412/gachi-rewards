@@ -1,4 +1,4 @@
-﻿# Shopify App Credentials
+# Shopify App Credentials
 # Get from: https://partners.shopify.com → Your App → App setup → API credentials
 SHOPIFY_API_KEY=your_api_key_here
 SHOPIFY_API_SECRET=your_api_secret_here
@@ -10,17 +10,18 @@ SHOPIFY_APP_URL=https://gachi-rewards.vercel.app
 # Scopes (permissions)
 SCOPES=write_products,read_customers,write_customers,read_orders,write_discounts,read_discounts,write_app_proxy
 
-# Database
-# Local development (SQLite - easiest option)
-DATABASE_URL="file:./prisma/dev.sqlite"
+# Database - Neon PostgreSQL
+# Pooled connection (used by Prisma Client - your app)
+# Get from: Neon Dashboard → Connection Details → Pooled connection
+DATABASE_URL=postgresql://neondb_owner:password@ep-xxx-pooler.region.aws.neon.tech/neondb?connect_timeout=15&sslmode=require
 
-# Production (Prisma Accelerate + Vercel Postgres)
-# 1. Go to https://cloud.prisma.io → Accelerate → Create API Key → copy prisma:// connection string
-# 2. Set that value as DATABASE_URL (required for Accelerate + connection pooling)
-# 3. Set DIRECT_DATABASE_URL to the raw Postgres connection string (from Vercel Postgres → Connection string)
-# 4. Add BOTH variables to Vercel (Production + Preview + Development)
-# DATABASE_URL=prisma://accelerate.prisma-data.net/?api_key=replace_with_prisma_accelerate_key
-# DIRECT_DATABASE_URL=postgres://default:password@host.vercel-storage.com:5432/verceldb?pgbouncer=true&connect_timeout=15
+# Direct connection (used by Prisma CLI - migrations, generate, etc.)
+# Get from: Neon Dashboard → Connection Details → Direct connection
+# Note: This is optional but recommended for faster CLI operations
+DIRECT_URL=postgresql://neondb_owner:password@ep-xxx.region.aws.neon.tech/neondb?sslmode=require
+
+# Local development (SQLite - optional)
+# DATABASE_URL="file:./prisma/dev.sqlite"
 
 # Webhook Secret (Optional but Recommended)
 # Get from: https://partners.shopify.com → Your App → App setup → Webhooks → Webhook signing secret

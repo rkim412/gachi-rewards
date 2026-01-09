@@ -2,22 +2,30 @@
 
 ## ✅ Code Files Updated
 
-The following files have been updated to use Neon PostgreSQL:
-- ✅ `app/db.server.js` - Removed Prisma Accelerate, using direct PostgreSQL connection
-- ✅ `prisma/schema.prisma` - Changed to PostgreSQL provider
+The following files have been updated to use Neon PostgreSQL with Prisma 7:
+- ✅ `app/db.server.js` - Updated for Prisma 7, passes DATABASE_URL to PrismaClient constructor
+- ✅ `prisma/schema.prisma` - Changed to PostgreSQL provider (Prisma 7: no url in datasource)
+- ✅ `prisma.config.ts` - Created for Prisma CLI commands (uses DIRECT_URL or DATABASE_URL)
 
 ## 🔧 Local Testing Setup
 
-### Step 1: Add DATABASE_URL to .env file
+### Step 1: Add Database Connection Strings to .env file
 
-Open your `.env` file and add your Neon connection string:
+Open your `.env` file and add both Neon connection strings:
 
 ```env
-# Neon PostgreSQL Connection (use the pooled connection string)
+# Pooled connection (used by Prisma Client - your app)
+# Get from: Neon Dashboard → Connection Details → Pooled connection
 DATABASE_URL=postgresql://neondb_owner:npg_Gg0BQwFnfKs5@ep-noisy-block-ahcrdwdt-pooler.c-3.us-east-1.aws.neon.tech/neondb?connect_timeout=15&sslmode=require
+
+# Direct connection (used by Prisma CLI - migrations, generate, etc.)
+# Get from: Neon Dashboard → Connection Details → Direct connection (non-pooled)
+DIRECT_URL=postgresql://neondb_owner:npg_Gg0BQwFnfKs5@ep-noisy-block-ahcrdwdt.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require
 ```
 
-**Important:** Use the **pooled connection string** (the one with `-pooler` in the hostname).
+**Important:** 
+- `DATABASE_URL` uses the **pooled connection** (has `-pooler` in hostname) - for your app
+- `DIRECT_URL` uses the **direct connection** (no `-pooler`) - for Prisma CLI commands
 
 ### Step 2: Run Database Migrations
 
@@ -62,7 +70,11 @@ This will:
    - **Key:** `DATABASE_URL`
    - **Value:** `postgresql://neondb_owner:npg_Gg0BQwFnfKs5@ep-noisy-block-ahcrdwdt-pooler.c-3.us-east-1.aws.neon.tech/neondb?connect_timeout=15&sslmode=require`
    - **Environments:** ✅ Production, ✅ Preview, ✅ Development
-3. **Remove** `DIRECT_DATABASE_URL` if it exists (not needed without Accelerate)
+3. Add `DIRECT_URL` (optional but recommended for faster migrations):
+   - **Key:** `DIRECT_URL`
+   - **Value:** `postgresql://neondb_owner:npg_Gg0BQwFnfKs5@ep-noisy-block-ahcrdwdt.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require`
+   - **Environments:** ✅ Production, ✅ Preview, ✅ Development
+   - **Note:** This is used by Prisma CLI commands (migrations, generate) via `prisma.config.ts`
 
 ### Deploy
 
