@@ -33,7 +33,7 @@ See **[VERCEL-SETUP-CHECKLIST.md](./VERCEL-SETUP-CHECKLIST.md)** for complete Ve
 Quick steps:
 1. Push code to GitHub
 2. Import to Vercel
-3. Create Vercel Postgres database
+3. Create Neon PostgreSQL database
 4. Add environment variables
 5. Deploy!
 
@@ -78,11 +78,10 @@ Required environment variables:
 - `SHOPIFY_API_SECRET` - Your Shopify app secret
 - `SHOPIFY_APP_URL` - Your app URL (e.g., `https://your-app.vercel.app`)
 - `SCOPES` - Comma-separated Shopify scopes
-- `DATABASE_URL` - Prisma Accelerate connection string (prisma://…)
-  - **Production**: Create an Accelerate API key at https://cloud.prisma.io and copy the prisma:// URL
-  - **Local**: Use `file:./prisma/dev.sqlite` or a local Postgres connection string
-- `DIRECT_DATABASE_URL` - Raw Postgres connection string (required when `DATABASE_URL` is prisma://)
-  - Copy from Vercel Postgres → Connection string → `postgres://…`
+- `DATABASE_URL` - PostgreSQL connection string
+  - **Production**: Use Neon PostgreSQL connection string (pooled connection with `-pooler` in hostname)
+  - **Local**: Use `file:./prisma/dev.sqlite` for SQLite or a PostgreSQL connection string
+  - Format: `postgresql://user:password@host/database?connect_timeout=15&sslmode=require`
 - `NODE_ENV` - Set to `production` for production
 
 ## License

@@ -25,18 +25,20 @@ After removing ngrok, you'll need to set up Vercel and update all URLs. Follow t
 
 ---
 
-## 🔧 Step 1: Create Vercel Postgres Database
+## 🔧 Step 1: Create Neon PostgreSQL Database
 
-1. In Vercel Dashboard → Your Project → **Storage** tab
-2. Click **"Create Database"**
-3. Select **"Postgres"**
-4. Name it: `gachi-rewards-db` (or any name)
-5. Select region (closest to your users)
-6. Click **"Create"**
+1. Go to https://neon.tech and sign up (or sign in)
+2. Click **"Create a project"**
+3. Fill in:
+   - **Project name**: `gachi-rewards` (or any name)
+   - **Region**: Choose closest to your users (e.g., `US East (Ohio)`)
+   - **PostgreSQL version**: `16` (recommended)
+4. Click **"Create project"**
 
 **After creation:**
-- Copy **`POSTGRES_PRISMA_URL`** from Connection String section
-- Save this for `DIRECT_DATABASE_URL` environment variable
+- Go to **Connection Details** in Neon dashboard
+- Copy the **Pooled connection** string (includes `?pgbouncer=true` or has `-pooler` in hostname)
+- This will be your `DATABASE_URL` environment variable
 
 ---
 
@@ -65,20 +67,16 @@ Add these **one by one** (check ✅ Production, ✅ Preview, ✅ Development for
    - Value: `read_customers,read_discounts,read_orders,write_app_proxy,write_customers,write_discounts,write_products`
 
 5. **DATABASE_URL**
-   - Get from: Vercel Dashboard → Storage → Your Database → **Connection String**
-   - Use: **`POSTGRES_PRISMA_URL`** (NOT `POSTGRES_URL`)
-   - Format: `prisma://...` (if using Prisma Accelerate) OR `postgres://...`
+   - Get from: Neon Dashboard → Your Project → **Connection Details** → **Pooled connection**
+   - Use the **pooled connection string** (has `-pooler` in hostname or includes `?pgbouncer=true`)
+   - Format: `postgresql://user:password@ep-xxx-pooler.region.aws.neon.tech/dbname?connect_timeout=15&sslmode=require`
+   - ⚠️ **Important**: Use the pooled connection for serverless compatibility
 
-6. **DIRECT_DATABASE_URL**
-   - Get from: Same location as above
-   - Use: **`POSTGRES_PRISMA_URL`** (the raw postgres:// connection string)
-   - Format: `postgres://default:xxxxx@xxxxx.vercel-storage.com:5432/verceldb?pgbouncer=true&connect_timeout=15`
-
-7. **NODE_ENV**
+6. **NODE_ENV**
    - Value: `production`
    - Environments: ✅ **Production only** (not Preview or Development)
 
-8. **WEBHOOK_SECRET** (Optional but Recommended)
+7. **WEBHOOK_SECRET** (Optional but Recommended)
    - Get from: https://partners.shopify.com → Your app → **App setup** → **Webhooks** → **"Webhook signing secret"**
    - Copy the secret value
 
@@ -177,8 +175,8 @@ If you have webhooks configured manually in Partners Dashboard, update them:
 3. Should load from Vercel URL
 
 ### Test 2: Database Connection
-1. Go to: **Vercel Dashboard → Your Project → Storage → Your Database → Data**
-2. Should see tables created (after migrations run)
+1. Go to: **Neon Dashboard → Your Project → Tables** tab
+2. Should see tables created: `Session`, `StorefrontUser`, `ReferralDiscountCode`, etc.
 
 ### Test 3: Webhooks
 1. Create a test order in your store
@@ -199,9 +197,10 @@ If you have webhooks configured manually in Partners Dashboard, update them:
 - Check `DATABASE_URL` is correct
 
 ### "Database Connection Error"
-- Verify `DATABASE_URL` and `DIRECT_DATABASE_URL` are set
-- Check database exists in Vercel Storage
-- Verify connection string format
+- Verify `DATABASE_URL` is set correctly
+- Check Neon dashboard to ensure database is active
+- Make sure you're using the **pooled connection string** (with `-pooler` in hostname)
+- Verify connection string format: `postgresql://...` (not `prisma://...`)
 
 ### "App Not Loading"
 - Verify App URL in Partners Dashboard matches Vercel URL
@@ -237,7 +236,7 @@ Use this for:
 
 - [ ] Code pushed to GitHub
 - [ ] Vercel project created
-- [ ] Vercel Postgres database created
+- [ ] Neon PostgreSQL database created
 - [ ] All environment variables set in Vercel
 - [ ] First deployment successful
 - [ ] `SHOPIFY_APP_URL` updated with actual Vercel URL
