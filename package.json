@@ -35,8 +35,7 @@
     "node": ">=20.19 <22 || >=22.12"
   },
   "dependencies": {
-    "@prisma/client": "^6.19.0",
-    "@prisma/extension-accelerate": "^2.0.2",
+    "@prisma/client": "^7.2.0",
     "@react-router/dev": "^7.9.3",
     "@react-router/fs-routes": "^7.9.3",
     "@react-router/node": "^7.9.3",
