@@ -1,7 +1,5 @@
 import { verifyAppProxyRequest } from "../services/proxy.server.js";
 import { createSafeLink } from "../services/referral.server.js";
-import { createShopifyDiscount } from "../services/discount.server.js";
-import { authenticate } from "../shopify.server.js";
 import prisma from "../db.server.js";
 
 /**

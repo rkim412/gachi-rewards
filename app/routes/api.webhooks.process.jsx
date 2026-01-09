@@ -122,7 +122,7 @@ export const loader = async ({ request }) => {
         success: true,
         message: "Webhook queue processed",
         processed: result.processed,
-        success: result.success,
+        succeeded: result.success,
         failed: result.failed,
         timestamp: new Date().toISOString(),
       }),
