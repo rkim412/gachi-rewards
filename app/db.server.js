@@ -4,12 +4,11 @@ import { PrismaClient } from "@prisma/client";
 
 // Create Prisma client for PostgreSQL (production) or SQLite (local dev)
 // Connection pooling is handled by Neon's built-in connection pooler
-// Prisma 7: Connection URL is passed to PrismaClient constructor
+// Prisma 7: Prisma Client automatically reads DATABASE_URL from environment variables
 const createPrismaClient = () => {
   return new PrismaClient({
-    // Prisma 7: Pass connection string directly to constructor
-    // Uses DATABASE_URL (pooled connection) for optimal serverless performance
-    datasourceUrl: process.env.DATABASE_URL,
+    // Prisma 7: DATABASE_URL is automatically read from environment variables
+    // No need to pass it explicitly to the constructor
     log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
   });
 };
