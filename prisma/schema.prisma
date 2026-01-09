@@ -6,12 +6,12 @@ generator client {
 }
 
 // Database Configuration
-// Production: Uses PostgreSQL via Prisma Accelerate (DATABASE_URL=prisma://...)
-// Local Dev: Uses SQLite (file:./dev.sqlite)
-// Note: For production, change provider to "postgresql" and use env("DATABASE_URL")
+// Production: Uses PostgreSQL via Neon (DATABASE_URL=postgresql://...)
+// Local Dev: Uses SQLite (file:./dev.sqlite) - change provider to "sqlite" for local testing
+// Note: For local SQLite testing, temporarily change provider to "sqlite" and url to "file:./dev.sqlite"
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.sqlite"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 // ============================================================================

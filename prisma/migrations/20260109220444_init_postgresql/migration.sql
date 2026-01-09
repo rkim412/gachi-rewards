@@ -1,11 +1,11 @@
 -- CreateTable
 CREATE TABLE "Session" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+    "id" TEXT NOT NULL,
     "shop" TEXT NOT NULL,
     "state" TEXT NOT NULL,
     "isOnline" BOOLEAN NOT NULL DEFAULT false,
     "scope" TEXT,
-    "expires" DATETIME,
+    "expires" TIMESTAMP(3),
     "accessToken" TEXT NOT NULL,
     "userId" BIGINT,
     "firstName" TEXT,
@@ -14,46 +14,54 @@ CREATE TABLE "Session" (
     "accountOwner" BOOLEAN NOT NULL DEFAULT false,
     "locale" TEXT,
     "collaborator" BOOLEAN DEFAULT false,
-    "emailVerified" BOOLEAN DEFAULT false
+    "emailVerified" BOOLEAN DEFAULT false,
+
+    CONSTRAINT "Session_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "StorefrontUser" (
-    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "id" SERIAL NOT NULL,
     "email" TEXT NOT NULL,
     "storefrontUserId" TEXT NOT NULL,
     "siteId" TEXT NOT NULL,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "StorefrontUser_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "ReferralDiscountCode" (
-    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "id" SERIAL NOT NULL,
     "referralCode" TEXT NOT NULL,
     "discountCode" TEXT NOT NULL,
     "shopifyDiscountId" TEXT,
     "siteId" TEXT NOT NULL,
     "referrerStorefrontUserId" INTEGER NOT NULL,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "ReferralDiscountCode_referrerStorefrontUserId_fkey" FOREIGN KEY ("referrerStorefrontUserId") REFERENCES "StorefrontUser" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ReferralDiscountCode_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "ReferralSafeLink" (
-    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "id" SERIAL NOT NULL,
     "oneTimeCode" TEXT NOT NULL,
     "referralCodeId" INTEGER NOT NULL,
+    "discountCode" TEXT,
+    "shopifyDiscountId" TEXT,
     "used" BOOLEAN NOT NULL DEFAULT false,
-    "usedAt" DATETIME,
+    "usedAt" TIMESTAMP(3),
     "usedByOrderId" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "expiresAt" DATETIME,
-    CONSTRAINT "ReferralSafeLink_referralCodeId_fkey" FOREIGN KEY ("referralCodeId") REFERENCES "ReferralDiscountCode" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "expiresAt" TIMESTAMP(3),
+
+    CONSTRAINT "ReferralSafeLink_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "ReferralJoin" (
-    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "id" SERIAL NOT NULL,
     "referralCodeId" INTEGER NOT NULL,
     "referrerStorefrontUserId" INTEGER,
     "refereeStorefrontUserId" TEXT,
@@ -62,43 +70,47 @@ CREATE TABLE "ReferralJoin" (
     "orderId" TEXT NOT NULL,
     "orderNumber" TEXT,
     "discountCode" TEXT,
-    "discountAmount" REAL,
-    "orderTotal" REAL NOT NULL,
+    "discountAmount" DOUBLE PRECISION,
+    "orderTotal" DOUBLE PRECISION NOT NULL,
     "status" TEXT NOT NULL DEFAULT 'pending',
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "verifiedAt" DATETIME,
-    CONSTRAINT "ReferralJoin_referralCodeId_fkey" FOREIGN KEY ("referralCodeId") REFERENCES "ReferralDiscountCode" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "ReferralJoin_referrerStorefrontUserId_fkey" FOREIGN KEY ("referrerStorefrontUserId") REFERENCES "StorefrontUser" ("id") ON DELETE SET NULL ON UPDATE CASCADE
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "verifiedAt" TIMESTAMP(3),
+
+    CONSTRAINT "ReferralJoin_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "ReferralConfig" (
-    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "id" SERIAL NOT NULL,
     "siteId" TEXT NOT NULL,
     "enabled" BOOLEAN NOT NULL DEFAULT true,
     "giveReward" TEXT,
     "getReward" TEXT,
     "type" TEXT DEFAULT 'percentage',
-    "amount" REAL DEFAULT 10.0,
-    "minimumSpend" REAL,
+    "amount" DOUBLE PRECISION DEFAULT 10.0,
+    "minimumSpend" DOUBLE PRECISION,
     "maxReferrals" INTEGER,
     "safeLinkExpiryHours" INTEGER NOT NULL DEFAULT 168,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ReferralConfig_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "WebhookQueue" (
-    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "id" SERIAL NOT NULL,
     "topic" TEXT NOT NULL,
     "shop" TEXT NOT NULL,
     "payload" TEXT NOT NULL,
     "status" TEXT NOT NULL DEFAULT 'pending',
     "attempts" INTEGER NOT NULL DEFAULT 0,
     "error" TEXT,
-    "processedAt" DATETIME,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL
+    "processedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "WebhookQueue_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
@@ -147,6 +159,9 @@ CREATE INDEX "ReferralSafeLink_used_expiresAt_idx" ON "ReferralSafeLink"("used",
 CREATE INDEX "ReferralSafeLink_referralCodeId_idx" ON "ReferralSafeLink"("referralCodeId");
 
 -- CreateIndex
+CREATE INDEX "ReferralSafeLink_discountCode_idx" ON "ReferralSafeLink"("discountCode");
+
+-- CreateIndex
 CREATE INDEX "ReferralJoin_orderId_idx" ON "ReferralJoin"("orderId");
 
 -- CreateIndex
@@ -181,3 +196,15 @@ CREATE INDEX "WebhookQueue_shop_topic_idx" ON "WebhookQueue"("shop", "topic");
 
 -- CreateIndex
 CREATE INDEX "WebhookQueue_status_idx" ON "WebhookQueue"("status");
+
+-- AddForeignKey
+ALTER TABLE "ReferralDiscountCode" ADD CONSTRAINT "ReferralDiscountCode_referrerStorefrontUserId_fkey" FOREIGN KEY ("referrerStorefrontUserId") REFERENCES "StorefrontUser"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ReferralSafeLink" ADD CONSTRAINT "ReferralSafeLink_referralCodeId_fkey" FOREIGN KEY ("referralCodeId") REFERENCES "ReferralDiscountCode"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ReferralJoin" ADD CONSTRAINT "ReferralJoin_referralCodeId_fkey" FOREIGN KEY ("referralCodeId") REFERENCES "ReferralDiscountCode"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ReferralJoin" ADD CONSTRAINT "ReferralJoin_referrerStorefrontUserId_fkey" FOREIGN KEY ("referrerStorefrontUserId") REFERENCES "StorefrontUser"("id") ON DELETE SET NULL ON UPDATE CASCADE;
