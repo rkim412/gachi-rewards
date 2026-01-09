@@ -2,7 +2,7 @@
 
 client_id = "f232a78339525e79f08b9bcec3b61b8f"
 name = "Gachi Rewards"
-application_url = "https://YOUR-VERCEL-URL.vercel.app"  # TODO: Replace with your actual Vercel URL after deployment
+application_url = "https://gachi-rewards.vercel.app"
 embedded = true
 
 [build]
@@ -36,9 +36,9 @@ api_version = "2025-10"
 scopes = "read_customers,read_discounts,read_orders,write_app_proxy,write_customers,write_discounts,write_products"
 
 [auth]
-redirect_urls = [ "https://YOUR-VERCEL-URL.vercel.app/auth" ]  # TODO: Replace with your actual Vercel URL + /auth
+redirect_urls = [ "https://gachi-rewards.vercel.app/auth" ]
 
 [app_proxy]
-url = "https://YOUR-VERCEL-URL.vercel.app/apps/gachi-rewards"  # TODO: Replace with your actual Vercel URL + /apps/gachi-rewards
+url = "https://gachi-rewards.vercel.app/apps/gachi-rewards"
 subpath = "gachi-rewards"
 prefix = "apps"
