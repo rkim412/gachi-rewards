@@ -1,4 +1,3 @@
-import { authenticate } from "../shopify.server.js";
 import { queueWebhook } from "../services/webhook-queue.server.js";
 import crypto from "crypto";
 
