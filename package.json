@@ -35,8 +35,10 @@
     "node": ">=20.19 <22 || >=22.12"
   },
   "dependencies": {
+    "@prisma/adapter-pg": "^7.2.0",
     "@prisma/client": "^7.2.0",
     "@react-router/dev": "^7.9.3",
+    "pg": "^8.13.1",
     "@react-router/fs-routes": "^7.9.3",
     "@react-router/node": "^7.9.3",
     "@react-router/serve": "^7.9.3",
@@ -55,6 +57,7 @@
     "@shopify/polaris-types": "^1.0.1",
     "@types/eslint": "^9.6.1",
     "@types/node": "^22.18.8",
+    "@types/pg": "^8.11.10",
     "@types/react": "^18.3.25",
     "@types/react-dom": "^18.3.7",
     "@typescript-eslint/eslint-plugin": "^6.21.0",

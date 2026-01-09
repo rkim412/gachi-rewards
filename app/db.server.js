@@ -1,14 +1,43 @@
 // Use regular PrismaClient (not edge client)
 // Edge client is only needed for edge runtime environments
 import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import pg from "pg";
+
+const { Pool } = pg;
 
 // Create Prisma client for PostgreSQL (production) or SQLite (local dev)
 // Connection pooling is handled by Neon's built-in connection pooler
-// Prisma 7: Prisma Client automatically reads DATABASE_URL from environment variables
+// Prisma 7: Requires a driver adapter when using engine type "client"
 const createPrismaClient = () => {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/60c012cc-d459-4e97-97d9-14bc07e6255d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'db.server.js:18',message:'Creating PrismaClient',data:{hasDatabaseUrl:!!process.env.DATABASE_URL,databaseUrlLength:process.env.DATABASE_URL?.length||0,nodeEnv:process.env.NODE_ENV},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
+
+  const databaseUrl = process.env.DATABASE_URL;
+  
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/60c012cc-d459-4e97-97d9-14bc07e6255d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'db.server.js:23',message:'DATABASE_URL check',data:{databaseUrlExists:!!databaseUrl,databaseUrlPrefix:databaseUrl?.substring(0,20)||'missing'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+  // #endregion
+
+  if (!databaseUrl) {
+    throw new Error("DATABASE_URL environment variable is not set");
+  }
+
+  // Create PostgreSQL connection pool
+  const pool = new Pool({
+    connectionString: databaseUrl,
+  });
+
+  // Create Prisma adapter for PostgreSQL
+  const adapter = new PrismaPg(pool);
+
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/60c012cc-d459-4e97-97d9-14bc07e6255d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'db.server.js:35',message:'Adapter created',data:{adapterType:adapter?.constructor?.name||'unknown'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+  // #endregion
+
   return new PrismaClient({
-    // Prisma 7: DATABASE_URL is automatically read from environment variables
-    // No need to pass it explicitly to the constructor
+    adapter,
     log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
   });
 };
@@ -23,5 +52,9 @@ if (process.env.NODE_ENV !== "production") {
 }
 
 const prisma = global.prismaGlobal ?? createPrismaClient();
+
+// #region agent log
+fetch('http://127.0.0.1:7242/ingest/60c012cc-d459-4e97-97d9-14bc07e6255d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'db.server.js:50',message:'PrismaClient exported',data:{isGlobal:!!global.prismaGlobal,nodeEnv:process.env.NODE_ENV},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+// #endregion
 
 export default prisma;
