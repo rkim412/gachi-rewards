@@ -12,7 +12,7 @@
     "start": "react-router-serve ./build/server/index.js",
     "docker-start": "npm run setup && npm run start",
     "setup": "prisma generate && prisma migrate dev",
-    "setup:prod": "prisma generate --schema=./prisma/schema.prisma && (prisma migrate deploy || (echo '⚠️  Migration deploy failed - check DATABASE_URL' && exit 0))",
+    "setup:prod": "npx prisma generate --schema=./prisma/schema.prisma && (npx prisma migrate deploy || (echo '⚠️  Migration deploy failed - check DATABASE_URL' && exit 0))",
     "postinstall": "npx prisma generate",
     "db:validate": "prisma validate",
     "db:generate": "prisma generate",
