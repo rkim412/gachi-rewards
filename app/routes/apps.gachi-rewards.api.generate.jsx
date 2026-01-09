@@ -8,7 +8,8 @@ import prisma from "../db.server.js";
  * App Proxy route for generating referral codes
  * Called by Thank You page extension after purchase
  * 
- * URL: /apps/gachi-rewards/api/generate
+ * URL: 
+ * /apps/gachi-rewards/api/generate
  * Method: GET or POST
  * Authentication: App Proxy signature verification + Admin session
  */
@@ -18,9 +19,20 @@ export const loader = async ({ request }) => {
     const { shop, loggedInCustomerId, isValid } = await verifyAppProxyRequest(request);
     
     if (!isValid) {
-      console.error("Invalid App Proxy signature");
+      console.error("Invalid App Proxy signature", {
+        shop,
+        loggedInCustomerId,
+        requestUrl: new URL(request.url).toString().substring(0, 300),
+        hint: "Check terminal logs for detailed signature mismatch information. Common causes: App Proxy URL mismatch, missing SHOPIFY_API_SECRET, or outdated tunnel URL in Partners Dashboard."
+      });
       return new Response(
-        JSON.stringify({ success: false, error: "Invalid request signature" }),
+        JSON.stringify({ 
+          success: false, 
+          error: "Invalid request signature",
+          hint: process.env.NODE_ENV === "development" 
+            ? "Check terminal logs for details. In dev mode, signature verification may be bypassed if configured."
+            : "Verify App Proxy URL in Partners Dashboard matches your current tunnel URL"
+        }),
         { status: 401, headers: { "Content-Type": "application/json" } }
       );
     }
@@ -38,10 +50,27 @@ export const loader = async ({ request }) => {
     const queryCustomerId = url.searchParams.get("customerId");
     const customerEmail = url.searchParams.get("customerEmail");
 
+    console.log(`[API GENERATE] Received request:`, {
+      shop,
+      orderId,
+      queryCustomerId,
+      loggedInCustomerId,
+      customerEmail,
+      allParams: Object.fromEntries(url.searchParams),
+    });
+
     // Use loggedInCustomerId from App Proxy if available, otherwise use query param
     // For guest checkouts, generate a temporary ID if nothing is available
     let finalCustomerId = loggedInCustomerId || queryCustomerId;
     let finalCustomerEmail = customerEmail;
+    
+    // Normalize customer ID: Extract numeric ID from GID format if present
+    // Shopify sends customer IDs as GIDs like "gid://shopify/Customer/9322001236199"
+    // But we store them as just the number part "9322001236199"
+    if (finalCustomerId && finalCustomerId.startsWith('gid://shopify/Customer/')) {
+      finalCustomerId = finalCustomerId.replace('gid://shopify/Customer/', '');
+      console.log(`[API GENERATE] Normalized customer ID from GID: ${finalCustomerId}`);
+    }
     
     if (!finalCustomerId && !finalCustomerEmail && !orderId) {
       // Generate a temporary identifier based on shop and timestamp
@@ -62,10 +91,25 @@ export const loader = async ({ request }) => {
 
     // Find or create referral code
     // Use customerId if available, otherwise use email as identifier
+    const storefrontUserId = finalCustomerId || `guest-${finalCustomerEmail || orderId || Date.now()}`;
+    const email = finalCustomerEmail || `guest-${orderId || Date.now()}@temp.com`;
+    
+    console.log(`[API GENERATE] Finding/creating referral code:`, {
+      shop,
+      storefrontUserId,
+      email,
+    });
+    
     const referralCodeRecord = await findOrCreateReferralCode({
       shop,
-      storefrontUserId: finalCustomerId || `guest-${finalCustomerEmail || orderId || Date.now()}`,
-      email: finalCustomerEmail || `guest-${orderId || Date.now()}@temp.com`,
+      storefrontUserId,
+      email,
+    });
+    
+    console.log(`[API GENERATE] Referral code result:`, {
+      id: referralCodeRecord.id,
+      referralCode: referralCodeRecord.referralCode,
+      discountCode: referralCodeRecord.discountCode,
     });
 
     // If discount code doesn't exist yet, try to create it (requires admin)

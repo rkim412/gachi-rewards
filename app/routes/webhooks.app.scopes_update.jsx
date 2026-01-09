@@ -1,5 +1,5 @@
-import { authenticate } from "../shopify.server";
-import db from "../db.server";
+import { authenticate } from "../shopify.server.js";
+import prisma from "../db.server.js";
 
 /**
  * Loader for GET requests - webhooks only accept POST
@@ -25,7 +25,7 @@ export const action = async ({ request }) => {
   const current = payload.current;
 
   if (session) {
-    await db.session.update({
+    await prisma.session.update({
       where: {
         id: session.id,
       },

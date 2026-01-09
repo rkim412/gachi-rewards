@@ -17,8 +17,8 @@
     return urlParams.get(REF_PARAM);
   }
 
-  // Store referral code in cart attributes
-  async function storeReferralInCart(referralCode, discountCode) {
+  // Store one-time code in cart attributes for Discount Function
+  async function storeReferralInCart(oneTimeCode, discountPercentage, discountType) {
     try {
       const response = await fetch("/cart/update.js", {
         method: "POST",
@@ -27,8 +27,9 @@
         },
         body: JSON.stringify({
           attributes: {
-            gachi_ref: referralCode,
-            gachi_discount_code: discountCode,
+            gachi_one_time_code: oneTimeCode,
+            gachi_discount_percentage: discountPercentage.toString(),
+            gachi_discount_type: discountType,
           },
         }),
       });
@@ -65,20 +66,25 @@
 
       const data = await response.json();
 
-      if (data.success && data.discountCode) {
-        // Store referral info in cart attributes
-        await storeReferralInCart(referralCode, data.discountCode);
+      if (data.success && data.oneTimeCode) {
+        // Store one-time code and discount info in cart attributes for Discount Function
+        await storeReferralInCart(
+          data.oneTimeCode,
+          data.discountPercentage || "10.0",
+          data.discountType || "percentage"
+        );
 
         // Save to localStorage for persistence
-        localStorage.setItem("gachi_ref", referralCode);
-        localStorage.setItem("gachi_discount_code", data.discountCode);
+        localStorage.setItem("gachi_one_time_code", data.oneTimeCode);
+        localStorage.setItem("gachi_discount_percentage", data.discountPercentage || "10.0");
+        localStorage.setItem("gachi_discount_type", data.discountType || "percentage");
 
-        // Remove ref parameter from URL (optional)
+        // Remove ref parameter from URL
         const url = new URL(window.location);
         url.searchParams.delete(REF_PARAM);
         window.history.replaceState({}, "", url);
 
-        console.log("Referral applied:", data.discountCode);
+        console.log("Referral applied:", data.oneTimeCode);
       }
     } catch (error) {
       console.error("Error applying referral:", error);
@@ -95,10 +101,11 @@
   // Also check localStorage on cart load
   if (window.Shopify && window.Shopify.cart) {
     window.Shopify.cart.onCartUpdate = function () {
-      const storedRef = localStorage.getItem("gachi_ref");
-      const storedDiscount = localStorage.getItem("gachi_discount_code");
-      if (storedRef && storedDiscount) {
-        storeReferralInCart(storedRef, storedDiscount);
+      const storedCode = localStorage.getItem("gachi_one_time_code");
+      const storedPercentage = localStorage.getItem("gachi_discount_percentage");
+      const storedType = localStorage.getItem("gachi_discount_type");
+      if (storedCode && storedPercentage) {
+        storeReferralInCart(storedCode, storedPercentage, storedType || "percentage");
       }
     };
   }

@@ -105,20 +105,81 @@ export async function markWebhookCompleted(id) {
  * Mark webhook as failed
  * @param {number} id - Webhook queue record ID
  * @param {string} errorMessage - Error message
- * @returns {Promise<void>}
+ * @param {boolean} retry - Whether to retry (if attempts < max)
+ * @param {number} maxAttempts - Maximum number of attempts (default: 3)
+ * @returns {Promise<{shouldRetry: boolean, attempts: number}>}
  */
-export async function markWebhookFailed(id, errorMessage) {
+export async function markWebhookFailed(id, errorMessage, retry = true, maxAttempts = 3) {
   try {
+    const webhook = await prisma.webhookQueue.findUnique({
+      where: { id },
+    });
+
+    if (!webhook) {
+      throw new Error(`Webhook ${id} not found`);
+    }
+
+    const shouldRetry = retry && webhook.attempts < maxAttempts;
+
     await prisma.webhookQueue.update({
       where: { id },
       data: {
-        status: "failed",
+        status: shouldRetry ? "pending" : "failed",
         error: errorMessage,
-        processedAt: new Date(),
+        processedAt: shouldRetry ? null : new Date(),
+        // Don't increment attempts if we're retrying - it will be incremented when processing starts
       },
     });
+
+    return {
+      shouldRetry,
+      attempts: webhook.attempts,
+    };
   } catch (error) {
     console.error(`[WEBHOOK QUEUE] Error marking webhook as failed:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Get failed webhooks that should be retried
+ * @param {number} limit - Maximum number of webhooks to fetch (default: 10)
+ * @param {number} maxAttempts - Maximum number of attempts (default: 3)
+ * @returns {Promise<Array>} - Array of webhook records to retry
+ */
+export async function getFailedWebhooksForRetry(limit = 10, maxAttempts = 3) {
+  try {
+    const webhooks = await prisma.webhookQueue.findMany({
+      where: {
+        status: "failed",
+        attempts: {
+          lt: maxAttempts,
+        },
+      },
+      orderBy: {
+        updatedAt: "asc", // Retry oldest failures first
+      },
+      take: limit,
+    });
+
+    // Reset status to pending for retry
+    const ids = webhooks.map((w) => w.id);
+    if (ids.length > 0) {
+      await prisma.webhookQueue.updateMany({
+        where: {
+          id: {
+            in: ids,
+          },
+        },
+        data: {
+          status: "pending",
+        },
+      });
+    }
+
+    return webhooks;
+  } catch (error) {
+    console.error(`[WEBHOOK QUEUE] Error fetching failed webhooks for retry:`, error);
     throw error;
   }
 }

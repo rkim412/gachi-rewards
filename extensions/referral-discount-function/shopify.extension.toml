@@ -1,0 +1,21 @@
+# Learn more about configuring your extension at https://shopify.dev/docs/apps/app-extensions/configuration-reference
+
+api_version = "2026-01"
+
+[[extensions]]
+
+uid = "0f5efe3b-410c-451d-0965-929d36c6cc1ead30c301"
+
+type = "function"
+name = "referral-discount-function"
+handle = "referral-discount-function"
+
+[[extensions.targeting]]
+target = "cart.lines.discounts.generate.run"
+input_query = "src/run.graphql"
+export = "cart_lines_discounts_generate_run"
+
+[extensions.build]
+command = "cargo build --target=wasm32-unknown-unknown --release"
+path = "target/wasm32-unknown-unknown/release/referral_discount_function.wasm"
+watch = ["src/**/*.rs"]

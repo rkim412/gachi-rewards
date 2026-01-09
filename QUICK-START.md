@@ -84,7 +84,7 @@ NODE_ENV=development
 - `your_api_key_here` → Your API key from Step 3
 - `your_api_secret_here` → Your API secret from Step 3
 
-> **💡 URL Setup:** The `SHOPIFY_APP_URL` should always be `http://localhost:3000` in your `.env` file. Shopify CLI will automatically create a tunnel URL that you'll use in the Partners Dashboard. See [LOCALHOST-URL-SETUP.md](./LOCALHOST-URL-SETUP.md) for detailed explanation.
+> **💡 Production Setup:** For production deployment, see [VERCEL-SETUP-CHECKLIST.md](./VERCEL-SETUP-CHECKLIST.md) for complete Vercel setup and URL configuration.
 
 ---
 
@@ -94,26 +94,19 @@ NODE_ENV=development
 npm run dev
 ```
 
-**First time:**
-1. Browser opens → Log in to Shopify Partners
-2. Select your app
-3. Copy the tunnel URL (e.g., `https://abc123.ngrok.io`) - **you'll need this next**
-
-**Keep this terminal open!** The dev server is running.
+**Note:** For production, deploy to Vercel instead. See [VERCEL-SETUP-CHECKLIST.md](./VERCEL-SETUP-CHECKLIST.md) for complete setup.
 
 ---
 
-## Step 6: Configure App Proxy (1 minute)
+## Step 6: Deploy to Vercel (Production)
 
-1. Go to https://partners.shopify.com
-2. Your app → **App setup** tab
-3. Scroll to **App Proxy**
-4. Configure:
-   - **Subpath prefix**: `apps`
-   - **Subpath**: `gachi-rewards`
-   - **Proxy URL**: `https://abc123.ngrok.io/apps/gachi-rewards`
-     - Replace `abc123.ngrok.io` with your tunnel URL from Step 5
-5. Click **Save**
+For production deployment:
+
+1. **Follow [VERCEL-SETUP-CHECKLIST.md](./VERCEL-SETUP-CHECKLIST.md)** for complete setup
+2. **Update Shopify Partners Dashboard** with your Vercel URL:
+   - App URL: `https://your-project.vercel.app/`
+   - Redirect URL: `https://your-project.vercel.app/auth`
+   - App Proxy: `https://your-project.vercel.app/apps/gachi-rewards`
 
 ---
 
@@ -209,17 +202,11 @@ This happens when multiple processes try to access the database. Fix it:
 
 3. **Delete lock files** (if they exist):
    ```bash
-   # Windows (PowerShell) - Quick fix script:
-   .\scripts\fix-database-locked.ps1
-   
-   # Or manually:
+   # Windows (PowerShell):
    Remove-Item prisma\dev.sqlite-wal -ErrorAction SilentlyContinue
    Remove-Item prisma\dev.sqlite-shm -ErrorAction SilentlyContinue
    
-   # Mac/Linux - Quick fix script:
-   ./scripts/fix-database-locked.sh
-   
-   # Or manually:
+   # Mac/Linux:
    rm prisma/dev.sqlite-wal prisma/dev.sqlite-shm 2>/dev/null
    ```
 
@@ -270,7 +257,7 @@ This can happen with SQLite. Try these fixes:
 - No extra spaces or quotes around values
 
 **"App Proxy returns 401"**
-- Verify App Proxy URL matches your tunnel URL
+- Verify App Proxy URL matches your Vercel URL (if using production)
 - Must end with `/apps/gachi-rewards`
 
 **Extensions not showing**
@@ -291,10 +278,7 @@ Your local environment is running. You can now:
 
 ## 📚 Next Steps
 
-- **URL Setup Details**: See [LOCALHOST-URL-SETUP.md](./LOCALHOST-URL-SETUP.md) for complete URL configuration guide
-- **Detailed Setup**: See [SETUP-LOCAL.md](./SETUP-LOCAL.md) for more details
-- **Production**: See [SETUP-PRODUCTION.md](./SETUP-PRODUCTION.md) for Vercel deployment
-- **Testing**: See [DEPLOY-TO-SHOPIFY-TEST.md](./DEPLOY-TO-SHOPIFY-TEST.md) for Shopify testing
+- **Vercel Deployment**: See [VERCEL-SETUP-CHECKLIST.md](./VERCEL-SETUP-CHECKLIST.md) for complete Vercel setup and URL configuration
 
 ---
 

@@ -99,6 +99,10 @@ model ReferralSafeLink {
   referralCodeId Int  // Links to parent ReferralDiscountCode
   referralCode   ReferralDiscountCode @relation(fields:[referralCodeId], references:[id], onDelete: Cascade)
   
+  // Unique discount code for this safe link
+  discountCode    String?  // Unique discount code: "GACHI-ALICE123-ABC1"
+  shopifyDiscountId String?  // Full Shopify GID: "gid://shopify/DiscountCodeNode/123"
+  
   // Usage tracking
   used           Boolean @default(false)  // Has this link been used?
   usedAt         DateTime?  // When was it used?
@@ -114,6 +118,7 @@ model ReferralSafeLink {
   @@index([expiresAt])             // Cleanup expired links
   @@index([used, expiresAt])       // Find unused expired links for cleanup
   @@index([referralCodeId])        // Links by referral code
+  @@index([discountCode])           // Lookup by discount code
 }
 
 // ReferralJoin: Tracks when a referral results in a purchase

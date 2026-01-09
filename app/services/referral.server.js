@@ -126,24 +126,68 @@ export async function findOrCreateReferralCode({
   } while (true);
 
   // Create referral discount code record (discount will be created separately)
-  const discountCodeRecord = await prisma.referralDiscountCode.create({
-    data: {
+  try {
+    console.log(`[REFERRAL] Creating referral code in database:`, {
       referralCode,
-      discountCode: "", // Will be updated after Shopify creates discount
       siteId,
       referrerStorefrontUserId: user.id,
-    },
-  });
+      userEmail: user.email,
+      userId: user.id,
+    });
+    
+    const discountCodeRecord = await prisma.referralDiscountCode.create({
+      data: {
+        referralCode,
+        discountCode: "", // Will be updated after Shopify creates discount
+        siteId,
+        referrerStorefrontUserId: user.id,
+      },
+    });
 
-  return discountCodeRecord;
+    console.log(`[REFERRAL] Successfully created referral code in database:`, {
+      id: discountCodeRecord.id,
+      referralCode: discountCodeRecord.referralCode,
+      siteId: discountCodeRecord.siteId,
+      referrerStorefrontUserId: discountCodeRecord.referrerStorefrontUserId,
+      createdAt: discountCodeRecord.createdAt,
+    });
+
+    // Verify it was actually saved by reading it back
+    const verifyRecord = await prisma.referralDiscountCode.findUnique({
+      where: {
+        referralCode_siteId: {
+          referralCode,
+          siteId,
+        },
+      },
+    });
+
+    if (verifyRecord) {
+      console.log(`[REFERRAL] Verified: Referral code exists in database`);
+    } else {
+      console.error(`[REFERRAL ERROR] Verification failed: Referral code not found after creation!`);
+    }
+
+    return discountCodeRecord;
+  } catch (error) {
+    console.error(`[REFERRAL ERROR] Failed to create referral code in database:`, {
+      error: error.message,
+      code: error.code,
+      meta: error.meta,
+      referralCode,
+      siteId,
+      referrerStorefrontUserId: user.id,
+    });
+    throw error; // Re-throw so caller knows it failed
+  }
 }
 
 /**
- * Create a safe one-time link
+ * Create a safe one-time link with unique discount code
  * @param {Object} params - Parameters
  * @param {string} params.referralCode - The referral code
  * @param {string} params.shop - Shop domain
- * @returns {Promise<Object>} - Safe link record with discount code
+ * @returns {Promise<Object>} - Safe link record with unique discount code
  */
 export async function createSafeLink({ referralCode, shop }) {
   const siteId = shop;
@@ -186,17 +230,22 @@ export async function createSafeLink({ referralCode, shop }) {
     }
   } while (true);
 
+  // Generate unique discount code suffix (4-6 characters)
+  const discountSuffix = generateReferralCode().substring(0, 6);
+  const uniqueDiscountCode = `GACHI-${referralCode}-${discountSuffix}`;
+
   const safeLink = await prisma.referralSafeLink.create({
     data: {
       oneTimeCode,
       referralCodeId: referralCodeRecord.id,
       expiresAt,
+      discountCode: uniqueDiscountCode, // Store the unique discount code
     },
   });
 
   return {
     ...safeLink,
-    discountCode: referralCodeRecord.discountCode,
+    discountCode: uniqueDiscountCode, // Return unique code instead of shared one
   };
 }
 

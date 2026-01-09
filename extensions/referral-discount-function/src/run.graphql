@@ -1,0 +1,25 @@
+query Input {
+  cart {
+    cost {
+      totalAmount {
+        amount
+        currencyCode
+      }
+    }
+    gachi_one_time_code: attribute(key: "gachi_one_time_code") {
+      key
+      value
+    }
+    gachi_discount_percentage: attribute(key: "gachi_discount_percentage") {
+      key
+      value
+    }
+    gachi_discount_type: attribute(key: "gachi_discount_type") {
+      key
+      value
+    }
+  }
+  discount {
+    discountClasses
+  }
+}

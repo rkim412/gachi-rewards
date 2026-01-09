@@ -49,57 +49,27 @@ export const loader = async ({ request }) => {
       throw new Error("Referral code not found");
     }
 
-    // Check if discount exists in Shopify, create if missing
-    let discountCode = referralCodeRecord.discountCode;
-    let shopifyDiscountId = referralCodeRecord.shopifyDiscountId;
+    // Get shop config for discount percentage
+    const config = await prisma.referralConfig.findUnique({
+      where: { siteId: shop },
+    });
 
-    if ((!discountCode || !shopifyDiscountId)) {
-      try {
-        // Try to get admin session for creating discounts
-        const { admin } = await authenticate.admin(request);
-        
-        // Get shop config for discount percentage
-        const config = await prisma.referralConfig.findUnique({
-          where: { siteId: shop },
-        });
+    const discountPercentage = config?.amount || 10.0;
+    const discountType = config?.type || "percentage";
 
-        const discountPercentage = config?.amount || 10.0;
-        const discountCodeName = `GACHI-${referralCodeRecord.referralCode}`;
-
-        // Create discount in Shopify
-        const discount = await createShopifyDiscount({
-          request,
-          code: discountCodeName,
-          percentageValue: discountPercentage,
-          usageLimit: 1000,
-        });
-
-        // Update referral code record with Shopify discount info
-        await prisma.referralDiscountCode.update({
-          where: { id: referralCodeRecord.id },
-          data: {
-            discountCode: discount.code,
-            shopifyDiscountId: discount.id,
-          },
-        });
-
-        discountCode = discount.code;
-        shopifyDiscountId = discount.id;
-      } catch (discountError) {
-        console.error("Failed to create discount in safe-link:", discountError);
-        // If discount creation fails, still return the discount code from DB
-        // (it might have been created elsewhere, or will be created later)
-      }
-    }
-
-    // Create safe link
+    // Create safe link (this now generates a unique discount code)
     const safeLink = await createSafeLink({ referralCode, shop });
+
+    // NOTE: With Discount Functions API, we no longer need to create discount codes
+    // The Discount Function will handle discount application based on cart attributes
+    // We keep discount code creation as a fallback for stores without Discount Functions
 
     return new Response(
       JSON.stringify({
         success: true,
         oneTimeCode: safeLink.oneTimeCode,
-        discountCode: discountCode || safeLink.discountCode, // Use newly created or existing
+        discountPercentage: discountPercentage, // For Discount Function
+        discountType: discountType, // For Discount Function
         expiresAt: safeLink.expiresAt,
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }

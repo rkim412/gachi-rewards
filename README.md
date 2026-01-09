@@ -17,7 +17,7 @@ See **[QUICK-START.md](./QUICK-START.md)** for a **5-minute setup guide** to get
 
 ### For Local Development
 
-See **[SETUP-LOCAL.md](./SETUP-LOCAL.md)** for complete local development setup guide.
+See **[QUICK-START.md](./QUICK-START.md)** for quick setup guide.
 
 Quick steps:
 1. Install dependencies: `npm install`
@@ -28,7 +28,7 @@ Quick steps:
 
 ### For Production Deployment
 
-See **[SETUP-PRODUCTION.md](./SETUP-PRODUCTION.md)** for complete Vercel deployment guide.
+See **[VERCEL-SETUP-CHECKLIST.md](./VERCEL-SETUP-CHECKLIST.md)** for complete Vercel deployment checklist.
 
 Quick steps:
 1. Push code to GitHub
@@ -37,27 +37,10 @@ Quick steps:
 4. Add environment variables
 5. Deploy!
 
-## Setup Guides
+## Documentation
 
-- **[QUICK-START.md](./QUICK-START.md)** - **🚀 5-minute quick start: Get running locally and testing right away!** ⭐
-- **[LOCALHOST-URL-SETUP.md](./LOCALHOST-URL-SETUP.md)** - **🔗 Complete guide to setting up localhost and tunnel URLs**
-- **[SETUP-LOCAL.md](./SETUP-LOCAL.md)** - Complete guide for local development with SQLite/PostgreSQL
-- **[DEPLOY-AND-TEST.md](./DEPLOY-AND-TEST.md)** - Deploy and test in Shopify
-- **[SETUP-PRODUCTION.md](./SETUP-PRODUCTION.md)** - Complete guide for Vercel production deployment
-
-## Testing Guides
-
-- **[TEST-REFERRAL-LOOP.md](./TEST-REFERRAL-LOOP.md)** - **🧪 Complete guide to testing the referral loop end-to-end** ⭐
-- **[TESTING-QUICK-REFERENCE.md](./TESTING-QUICK-REFERENCE.md)** - Quick reference for common testing scenarios
-- **[FIX-DATABASE-ERRORS.md](./FIX-DATABASE-ERRORS.md)** - Troubleshooting database and import errors
-
-## Deployment
-
-### Local Development
-Follow **[SETUP-LOCAL.md](./SETUP-LOCAL.md)** to set up local development environment.
-
-### Production (Vercel)
-Follow **[SETUP-PRODUCTION.md](./SETUP-PRODUCTION.md)** for step-by-step Vercel deployment.
+- **[QUICK-START.md](./QUICK-START.md)** - **🚀 5-minute quick start guide** ⭐
+- **[VERCEL-SETUP-CHECKLIST.md](./VERCEL-SETUP-CHECKLIST.md)** - **✅ Complete Vercel deployment checklist**
 
 ### Deploy Shopify Extensions
 

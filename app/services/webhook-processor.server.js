@@ -20,7 +20,10 @@ async function processOrdersCreate(shop, order) {
   // ============================================
   if (order.customer?.id || order.email) {
     try {
-      const customerId = order.customer?.id || `guest-${order.email || order.id}`;
+      // Convert customer ID to string (Shopify sends it as a number)
+      const customerId = order.customer?.id 
+        ? String(order.customer.id)  // Convert number to string
+        : `guest-${order.email || order.id}`;
       const customerEmail = order.email || `guest-${order.id}@temp.com`;
 
       // Find or create referral code for this customer
@@ -140,7 +143,7 @@ async function processOrdersCreate(shop, order) {
         orderId: order.id,
         orderNumber: order.order_number?.toString(),
         refereeEmail: order.email,
-        refereeStorefrontUserId: order.customer?.id,
+        refereeStorefrontUserId: order.customer?.id ? String(order.customer.id) : null,
         discountCode,
         orderTotal: parseFloat(order.total_price),
         discountAmount,

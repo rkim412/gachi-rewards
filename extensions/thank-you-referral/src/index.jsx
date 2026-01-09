@@ -60,6 +60,15 @@ function ReferralThankYou() {
       if (customer?.id) params.append("customerId", customer.id);
       if (email) params.append("customerEmail", email);
 
+      console.log('[THANK YOU PAGE] Fetching referral link:', {
+        apiUrl,
+        orderId: order?.id,
+        orderNumber: order?.number,
+        customerId: customer?.id,
+        email,
+        params: params.toString(),
+      });
+
       const response = await fetch(`${apiUrl}${params.toString() ? `?${params}` : ''}`, {
         method: "GET",
         headers: { "Content-Type": "application/json" },
@@ -70,10 +79,18 @@ function ReferralThankYou() {
       }
 
       const data = await response.json();
+      console.log('[THANK YOU PAGE] API response:', {
+        success: data.success,
+        referralCode: data.referralCode,
+        hasReferralLink: !!data.referralLink,
+        error: data.error,
+      });
+      
       if (data.success && data.referralLink) {
         setReferralLink(data.referralLink);
         setReferralCode(data.referralCode || data.referralLink.match(/[?&]ref=([^&]+)/)?.[1]);
       } else {
+        console.error('[THANK YOU PAGE] API error:', data.error);
         setError(data.error || "Failed to generate referral link");
       }
     } catch (err) {

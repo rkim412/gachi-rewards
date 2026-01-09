@@ -1,0 +1,11 @@
+[package]
+name = "referral-discount-function"
+version = "1.0.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+shopify_function = "2.0.3"
+
