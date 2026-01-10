@@ -460,12 +460,20 @@ async function getRequestHandler() {
           });
           // #endregion
           
+          // Preserve original build structure - don't overwrite build.routes
+          // ServerRouter expects the original build.routes structure (route manifest object)
+          // Only add dataRoutes as a new property, don't modify existing build properties
           reactRouterContext = {
             ...queryContext, // Routing state from query
             router: router,  // Add the router for StaticRouterProvider
             routes: dataRoutes,  // Use dataRoutes (processed routes) instead of raw routes
             dataRoutes: dataRoutes,  // Also add as dataRoutes property explicitly
-            build: { ...build, routes: dataRoutes, dataRoutes: dataRoutes, },
+            build: {
+              ...build, // Preserve all original build properties including build.routes (route manifest)
+              // Don't overwrite build.routes - ServerRouter needs the original structure
+              // Only add dataRoutes as additional info
+              dataRoutes: dataRoutes,
+            },
           };
           
           // #region agent log
@@ -478,6 +486,9 @@ async function getRequestHandler() {
             entryKeys: reactRouterContext?.build?.entry ? Object.keys(reactRouterContext.build.entry) : [],
             entryModuleKeys: reactRouterContext?.build?.entry?.module ? Object.keys(reactRouterContext.build.entry.module) : [],
             hasRoutes: !!reactRouterContext?.build?.routes,
+            routesType: typeof reactRouterContext?.build?.routes,
+            routesIsArray: Array.isArray(reactRouterContext?.build?.routes),
+            routesIsObject: reactRouterContext?.build?.routes && typeof reactRouterContext?.build?.routes === 'object' && !Array.isArray(reactRouterContext?.build?.routes),
             hasDataRoutes: !!reactRouterContext?.build?.dataRoutes,
             entryType: typeof reactRouterContext?.build?.entry,
             entryModuleType: typeof reactRouterContext?.build?.entry?.module,
