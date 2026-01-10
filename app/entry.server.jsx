@@ -18,7 +18,20 @@ export default function handleRequest(
   const callbackName = isbot(userAgent ?? "") ? "onAllReady" : "onShellReady";
 
   // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/60c012cc-d459-4e97-97d9-14bc07e6255d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'entry.server.jsx:16',message:'routerContext received in entry.server',data:{hasContext:!!routerContext,hasBuild:!!routerContext?.build,buildKeys:routerContext?.build?Object.keys(routerContext.build):[],hasEntry:!!routerContext?.build?.entry,hasEntryModule:!!routerContext?.build?.entry?.module,entryKeys:routerContext?.build?.entry?Object.keys(routerContext.build.entry):[],entryModuleKeys:routerContext?.build?.entry?.module?Object.keys(routerContext.build.entry.module):[],hasRoutes:!!routerContext?.build?.routes,entryModuleDefault:typeof routerContext?.build?.entry?.module?.default},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+  console.log("[DEBUG] routerContext received in entry.server:", {
+    location: 'entry.server.jsx:16',
+    hasContext: !!routerContext,
+    hasBuild: !!routerContext?.build,
+    buildKeys: routerContext?.build ? Object.keys(routerContext.build) : [],
+    hasEntry: !!routerContext?.build?.entry,
+    hasEntryModule: !!routerContext?.build?.entry?.module,
+    entryKeys: routerContext?.build?.entry ? Object.keys(routerContext.build.entry) : [],
+    entryModuleKeys: routerContext?.build?.entry?.module ? Object.keys(routerContext.build.entry.module) : [],
+    hasRoutes: !!routerContext?.build?.routes,
+    entryModuleDefault: typeof routerContext?.build?.entry?.module?.default,
+    buildEntryStringified: JSON.stringify(routerContext?.build?.entry, null, 2).substring(0, 500),
+    hypothesisId: 'D'
+  });
   // #endregion
 
   return new Promise((resolve, reject) => {
