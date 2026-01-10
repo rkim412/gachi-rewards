@@ -9,11 +9,10 @@ generator client {
 // Production: Uses PostgreSQL via Neon
 // Local Dev: Uses SQLite - change provider to "sqlite" for local testing
 // 
-// Prisma 7: Connection URLs are configured in:
-// - prisma.config.ts: For Prisma CLI commands (migrations, generate) - uses DIRECT_URL or DATABASE_URL
-// - app/db.server.js: For Prisma Client (your app) - uses DATABASE_URL (pooled connection)
+// Prisma 6: Connection URL is read from DATABASE_URL environment variable
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 // ============================================================================
