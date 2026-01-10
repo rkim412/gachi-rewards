@@ -403,6 +403,10 @@ async function getRequestHandler() {
           // Query the static handler to get routing state
           const queryContext = await staticHandler.query(request);
           
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/60c012cc-d459-4e97-97d9-14bc07e6255d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api/index.js:404',message:'queryContext structure',data:{hasQueryContext:!!queryContext,queryContextKeys:queryContext?Object.keys(queryContext):[],hasBuild:!!queryContext?.build,buildKeys:queryContext?.build?Object.keys(queryContext.build):[],hasEntry:!!queryContext?.build?.entry,hasEntryModule:!!queryContext?.build?.entry?.module},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+          // #endregion
+          
           // If query returns a Response (redirect, error, etc.), return it directly
           if (queryContext instanceof Response) {
             return queryContext;
@@ -431,6 +435,10 @@ async function getRequestHandler() {
             throw routerError;
           }
           
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/60c012cc-d459-4e97-97d9-14bc07e6255d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api/index.js:434',message:'Build object structure before context creation',data:{buildKeys:build?Object.keys(build):[],hasEntry:!!build?.entry,hasEntryModule:!!build?.entry?.module,entryKeys:build?.entry?Object.keys(build.entry):[],entryModuleKeys:build?.entry?.module?Object.keys(build.entry.module):[],hasAssets:!!build?.assets,hasRoutes:!!build?.routes},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+          // #endregion
+          
           reactRouterContext = {
             ...queryContext, // Routing state from query
             router: router,  // Add the router for StaticRouterProvider
@@ -438,6 +446,10 @@ async function getRequestHandler() {
             dataRoutes: dataRoutes,  // Also add as dataRoutes property explicitly
             build: { ...build, routes: dataRoutes, dataRoutes: dataRoutes, },
           };
+          
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/60c012cc-d459-4e97-97d9-14bc07e6255d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api/index.js:442',message:'Final reactRouterContext.build structure',data:{hasBuild:!!reactRouterContext?.build,buildKeys:reactRouterContext?.build?Object.keys(reactRouterContext.build):[],hasEntry:!!reactRouterContext?.build?.entry,hasEntryModule:!!reactRouterContext?.build?.entry?.module,entryKeys:reactRouterContext?.build?.entry?Object.keys(reactRouterContext.build.entry):[],entryModuleKeys:reactRouterContext?.build?.entry?.module?Object.keys(reactRouterContext.build.entry.module):[],hasRoutes:!!reactRouterContext?.build?.routes,hasDataRoutes:!!reactRouterContext?.build?.dataRoutes},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+          // #endregion
           
           // Final validation - ensure router is in context
           if (!reactRouterContext.router) {
