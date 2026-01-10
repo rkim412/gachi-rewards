@@ -403,19 +403,6 @@ async function getRequestHandler() {
           // Query the static handler to get routing state
           const queryContext = await staticHandler.query(request);
           
-          // #region agent log
-          console.log("[DEBUG] queryContext structure:", {
-            location: 'api/index.js:404',
-            hasQueryContext: !!queryContext,
-            queryContextKeys: queryContext ? Object.keys(queryContext) : [],
-            hasBuild: !!queryContext?.build,
-            buildKeys: queryContext?.build ? Object.keys(queryContext.build) : [],
-            hasEntry: !!queryContext?.build?.entry,
-            hasEntryModule: !!queryContext?.build?.entry?.module,
-            hypothesisId: 'A'
-          });
-          // #endregion
-          
           // If query returns a Response (redirect, error, etc.), return it directly
           if (queryContext instanceof Response) {
             return queryContext;
@@ -444,22 +431,6 @@ async function getRequestHandler() {
             throw routerError;
           }
           
-          // #region agent log
-          console.log("[DEBUG] Build object structure before context creation:", {
-            location: 'api/index.js:434',
-            buildKeys: build ? Object.keys(build) : [],
-            hasEntry: !!build?.entry,
-            hasEntryModule: !!build?.entry?.module,
-            entryKeys: build?.entry ? Object.keys(build.entry) : [],
-            entryModuleKeys: build?.entry?.module ? Object.keys(build.entry.module) : [],
-            hasAssets: !!build?.assets,
-            hasRoutes: !!build?.routes,
-            entryType: typeof build?.entry,
-            entryModuleType: typeof build?.entry?.module,
-            hypothesisId: 'B'
-          });
-          // #endregion
-          
           // Preserve original build structure - don't overwrite build.routes
           // ServerRouter expects the original build.routes structure (route manifest object)
           // Only add dataRoutes as a new property, don't modify existing build properties
@@ -475,26 +446,6 @@ async function getRequestHandler() {
               dataRoutes: dataRoutes,
             },
           };
-          
-          // #region agent log
-          console.log("[DEBUG] Final reactRouterContext.build structure:", {
-            location: 'api/index.js:442',
-            hasBuild: !!reactRouterContext?.build,
-            buildKeys: reactRouterContext?.build ? Object.keys(reactRouterContext.build) : [],
-            hasEntry: !!reactRouterContext?.build?.entry,
-            hasEntryModule: !!reactRouterContext?.build?.entry?.module,
-            entryKeys: reactRouterContext?.build?.entry ? Object.keys(reactRouterContext.build.entry) : [],
-            entryModuleKeys: reactRouterContext?.build?.entry?.module ? Object.keys(reactRouterContext.build.entry.module) : [],
-            hasRoutes: !!reactRouterContext?.build?.routes,
-            routesType: typeof reactRouterContext?.build?.routes,
-            routesIsArray: Array.isArray(reactRouterContext?.build?.routes),
-            routesIsObject: reactRouterContext?.build?.routes && typeof reactRouterContext?.build?.routes === 'object' && !Array.isArray(reactRouterContext?.build?.routes),
-            hasDataRoutes: !!reactRouterContext?.build?.dataRoutes,
-            entryType: typeof reactRouterContext?.build?.entry,
-            entryModuleType: typeof reactRouterContext?.build?.entry?.module,
-            hypothesisId: 'C'
-          });
-          // #endregion
           
           // Final validation - ensure router is in context
           if (!reactRouterContext.router) {
@@ -833,11 +784,14 @@ export default async function handler(req, res) {
       res.end();
     }
   } catch (error) {
-    console.error("Error in Vercel handler:", error);
-    console.error("Error details:", {
+    console.error("[ERROR] Error in Vercel handler:", error);
+    console.error("[ERROR] Error details:", {
       message: error.message,
       stack: error.stack,
       name: error.name,
+      cause: error.cause,
+      url: req.url,
+      method: req.method,
     });
     
     // Send error response

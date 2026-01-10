@@ -17,23 +17,6 @@ export default function handleRequest(
   const userAgent = request.headers.get("user-agent");
   const callbackName = isbot(userAgent ?? "") ? "onAllReady" : "onShellReady";
 
-  // #region agent log
-  console.log("[DEBUG] routerContext received in entry.server:", {
-    location: 'entry.server.jsx:16',
-    hasContext: !!routerContext,
-    hasBuild: !!routerContext?.build,
-    buildKeys: routerContext?.build ? Object.keys(routerContext.build) : [],
-    hasEntry: !!routerContext?.build?.entry,
-    hasEntryModule: !!routerContext?.build?.entry?.module,
-    entryKeys: routerContext?.build?.entry ? Object.keys(routerContext.build.entry) : [],
-    entryModuleKeys: routerContext?.build?.entry?.module ? Object.keys(routerContext.build.entry.module) : [],
-    hasRoutes: !!routerContext?.build?.routes,
-    entryModuleDefault: typeof routerContext?.build?.entry?.module?.default,
-    buildEntryStringified: JSON.stringify(routerContext?.build?.entry, null, 2).substring(0, 500),
-    hypothesisId: 'D'
-  });
-  // #endregion
-
   return new Promise((resolve, reject) => {
     const { pipe, abort } = renderToPipeableStream(
       <ServerRouter
