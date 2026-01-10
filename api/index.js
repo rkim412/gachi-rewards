@@ -436,14 +436,7 @@ async function getRequestHandler() {
             router: router,  // Add the router for StaticRouterProvider
             routes: dataRoutes,  // Use dataRoutes (processed routes) instead of raw routes
             dataRoutes: dataRoutes,  // Also add as dataRoutes property explicitly
-            build: {
-              assets: build.assets,
-              entry: build.entry,
-              routes: dataRoutes,  // Use dataRoutes in build object
-              dataRoutes: dataRoutes,  // Add dataRoutes to build
-              publicPath: build.publicPath || "/",
-              assetsBuildDirectory: build.assetsBuildDirectory || "build/client",
-            },
+            build: { ...build, routes: dataRoutes, dataRoutes: dataRoutes, },
           };
           
           // Final validation - ensure router is in context
@@ -489,14 +482,7 @@ async function getRequestHandler() {
             router: router,  // Add router to context
             routes: dataRoutes,
             dataRoutes: dataRoutes,
-            build: {
-              assets: build.assets,
-              entry: build.entry,
-              routes: dataRoutes,
-              dataRoutes: dataRoutes,
-              publicPath: build.publicPath || "/",
-              assetsBuildDirectory: build.assetsBuildDirectory || "build/client",
-            },
+            build: { ...build, routes: dataRoutes, dataRoutes: dataRoutes, },
             staticHandlerContext: fallbackContext,
           };
           
