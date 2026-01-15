@@ -32,7 +32,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     prisma.storefrontUser.findMany({
       where: { siteId },
       include: {
-        referralDiscountCode: true,
+        referralCode: true,
         referralsMade: {
           select: {
             orderTotal: true,
@@ -79,7 +79,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
       return {
         email: affiliate.email,
-        referralCode: affiliate.referralDiscountCode?.referralCode || "N/A",
+        referralCode: affiliate.referralCode?.code || "N/A",
         totalReferrals,
         totalRevenue,
       };
@@ -310,4 +310,3 @@ export default function Analytics() {
 export const headers: HeadersFunction = (headersArgs) => {
   return boundary.headers(headersArgs);
 };
-

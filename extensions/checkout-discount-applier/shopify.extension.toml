@@ -14,3 +14,6 @@ handle = "checkout-discount-applier"
 target = "purchase.checkout.block.render"
 module = "./src/index.jsx"
 
+# Enable network access for App Proxy calls
+[extensions.capabilities]
+network_access = true

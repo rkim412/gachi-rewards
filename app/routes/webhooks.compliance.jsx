@@ -73,7 +73,7 @@ export const action = async ({ request }) => {
             // Build OR condition for customer lookup
             const orConditions = [];
             if (customerId) {
-              orConditions.push({ storefrontUserId: `gid://shopify/Customer/${customerId}` });
+              orConditions.push({ shopifyCustomerId: `gid://shopify/Customer/${customerId}` });
             }
             if (customerEmail) {
               orConditions.push({ email: customerEmail });
@@ -86,10 +86,10 @@ export const action = async ({ request }) => {
             const storefrontUser = await prisma.storefrontUser.findFirst({
               where: whereClause,
               include: {
-                referralDiscountCode: {
+                referralCode: {
                   include: {
                     referralJoins: true,
-                    referralSafeLinks: true,
+                    discountCodes: true,
                   },
                 },
               },
@@ -105,24 +105,24 @@ export const action = async ({ request }) => {
               });
 
               // Delete referral joins where this customer was the referrer
-              if (storefrontUser.referralDiscountCode) {
+              if (storefrontUser.referralCode) {
                 await prisma.referralJoin.deleteMany({
                   where: {
-                    referralCodeId: storefrontUser.referralDiscountCode.id,
+                    referralCodeId: storefrontUser.referralCode.id,
                   },
                 });
 
-                // Delete safe links
-                await prisma.referralSafeLink.deleteMany({
+                // Delete discount codes
+                await prisma.referralDiscountCode.deleteMany({
                   where: {
-                    referralCodeId: storefrontUser.referralDiscountCode.id,
+                    referralCodeId: storefrontUser.referralCode.id,
                   },
                 });
 
                 // Delete referral code
-                await prisma.referralDiscountCode.delete({
+                await prisma.referralCode.delete({
                   where: {
-                    id: storefrontUser.referralDiscountCode.id,
+                    id: storefrontUser.referralCode.id,
                   },
                 });
               }
@@ -162,8 +162,24 @@ export const action = async ({ request }) => {
             where: { siteId: shop },
           });
 
+          // Delete all discount codes for this shop (via referral codes)
+          const referralCodes = await prisma.referralCode.findMany({
+            where: { siteId: shop },
+            select: { id: true },
+          });
+          
+          if (referralCodes.length > 0) {
+            await prisma.referralDiscountCode.deleteMany({
+              where: {
+                referralCodeId: {
+                  in: referralCodes.map(rc => rc.id),
+                },
+              },
+            });
+          }
+
           // Delete all referral codes for this shop
-          await prisma.referralDiscountCode.deleteMany({
+          await prisma.referralCode.deleteMany({
             where: { siteId: shop },
           });
 

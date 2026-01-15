@@ -80,6 +80,14 @@ Add these **one by one** (check ✅ Production, ✅ Preview, ✅ Development for
    - Get from: https://partners.shopify.com → Your app → **App setup** → **Webhooks** → **"Webhook signing secret"**
    - Copy the secret value
 
+8. **SHOPIFY_STOREFRONT_ACCESS_TOKEN** (Required for cart metafields)
+   - Get from: https://partners.shopify.com → Your app → **App setup** → **API credentials** → **Storefront API**
+   - Click **"Configure"** or **"Enable"**
+   - Enable scopes: `read_cart`, `write_cart`
+   - Save and copy the **Storefront API access token**
+   - ⚠️ **This is different from Admin API token!**
+   - Value: Your Storefront API access token (usually starts with `shpat_`)
+
 ---
 
 ## 🚀 Step 3: Deploy to Vercel

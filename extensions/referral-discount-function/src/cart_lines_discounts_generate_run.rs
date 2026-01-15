@@ -16,37 +16,94 @@ fn cart_lines_discounts_generate_run(
         return Ok(schema::CartLinesDiscountsGenerateRunResult { operations: vec![] });
     }
 
-    // Get the one-time code from cart attribute (queried by key)
-    // We only validate it exists - actual validation happens server-side on order creation
-    let has_one_time_code = input
-        .cart()
-        .gachi_one_time_code()
-        .and_then(|attr| attr.value())
-        .map(|s| s.to_string())
-        .map_or(false, |s| !s.is_empty());
+    // ============================================
+    // PRIORITY 1: Read from App Discount metafields
+    // These are set when the discount code was created via discountCodeAppCreate
+    // ============================================
+    let discount_percentage_from_discount = input
+        .discount()
+        .metafield_discount_percentage()
+        .and_then(|mf| mf.value().parse::<f64>().ok());
 
-    // If no one-time code, no discount
-    if !has_one_time_code {
+    let discount_type_from_discount = input
+        .discount()
+        .metafield_discount_type()
+        .map(|mf| mf.value().to_string());
+
+    // ============================================
+    // PRIORITY 2: Fallback to cart metafields (backward compatibility)
+    // ============================================
+    let discount_code_from_cart_metafield = input
+        .cart()
+        .metafield_shopify_discount_code()
+        .map(|mf| mf.value().to_string());
+
+    let discount_percentage_from_cart_metafield = input
+        .cart()
+        .metafield_discount_percentage()
+        .and_then(|mf| mf.value().parse::<f64>().ok());
+
+    let discount_type_from_cart_metafield = input
+        .cart()
+        .metafield_discount_type()
+        .map(|mf| mf.value().to_string());
+
+    // ============================================
+    // PRIORITY 3: Fallback to cart attributes (legacy)
+    // ============================================
+    let discount_code_from_attributes = input
+        .cart()
+        .referral_shopify_discount_code()
+        .and_then(|attr| attr.value())
+        .map(|s| s.to_string());
+
+    let discount_percentage_from_attributes = input
+        .cart()
+        .referral_discount_percentage()
+        .and_then(|attr| attr.value())
+        .and_then(|s| s.parse::<f64>().ok());
+
+    let discount_type_from_attributes = input
+        .cart()
+        .referral_discount_type()
+        .and_then(|attr| attr.value())
+        .map(|s| s.to_string());
+
+    // ============================================
+    // Resolve final values with priority
+    // ============================================
+    
+    // Check if this was triggered by an App discount (has discount metafields)
+    let is_app_discount = discount_percentage_from_discount.is_some();
+
+    // Discount percentage: App discount metafields > cart metafields > cart attributes > default
+    let discount_percentage = discount_percentage_from_discount
+        .or(discount_percentage_from_cart_metafield)
+        .or(discount_percentage_from_attributes)
+        .unwrap_or(10.0);
+
+    // Discount type: App discount metafields > cart metafields > cart attributes > default
+    let discount_type = discount_type_from_discount
+        .or(discount_type_from_cart_metafield)
+        .or(discount_type_from_attributes)
+        .unwrap_or_else(|| "percentage".to_string());
+
+    // Discount code from cart (for legacy flow)
+    // For App discounts, this may be empty - Shopify handles the code association
+    let shopify_discount_code_value = discount_code_from_cart_metafield
+        .or(discount_code_from_attributes)
+        .unwrap_or_default();
+
+    // Determine if we should apply a discount:
+    // 1. App discount triggered (has discount metafields) - always apply
+    // 2. Legacy flow (has discount code in cart) - apply if code exists
+    let should_apply = is_app_discount || !shopify_discount_code_value.is_empty();
+
+    if !should_apply {
         return Ok(schema::CartLinesDiscountsGenerateRunResult { operations: vec![] });
     }
 
-    // Get discount percentage from cart attribute or use default
-    let discount_percentage = input
-        .cart()
-        .gachi_discount_percentage()
-        .and_then(|attr| attr.value())
-        .and_then(|s| s.parse::<f64>().ok())
-        .unwrap_or(10.0);
-
-    // Get discount type from cart attribute or use default
-    let discount_type = input
-        .cart()
-        .gachi_discount_type()
-        .and_then(|attr| attr.value())
-        .map_or("percentage".to_string(), |s| s.to_string());
-
     // Get cart total for fixed amount calculations
-    // Decimal type from shopify_function can be converted using to_string then parse
     let cart_total = input
         .cart()
         .cost()
@@ -70,6 +127,16 @@ fn cart_lines_discounts_generate_run(
     };
 
     // Create the order discount operation
+    // For App discounts, Shopify automatically associates the discount code
+    // For legacy flow, we need to include the associated_discount_code
+    let associated_code = if shopify_discount_code_value.is_empty() {
+        None
+    } else {
+        Some(schema::AssociatedDiscountCode {
+            code: shopify_discount_code_value,
+        })
+    };
+
     let operation = schema::CartOperation::OrderDiscountsAdd(
         schema::OrderDiscountsAddOperation {
             selection_strategy: schema::OrderDiscountSelectionStrategy::First,
@@ -82,7 +149,7 @@ fn cart_lines_discounts_generate_run(
                 message: Some(format!("Referral Discount ({:.0}%)", discount_percentage)),
                 value: discount_value,
                 conditions: None,
-                associated_discount_code: None,
+                associated_discount_code: associated_code,
             }],
         },
     );

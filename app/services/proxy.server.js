@@ -23,25 +23,14 @@ export async function verifyAppProxyRequest(request) {
   });
 
   if (!shop || !timestamp || !signature) {
-    console.error("Missing App Proxy parameters:", { 
-      shop: !!shop, 
-      timestamp: !!timestamp, 
-      signature: !!signature,
-      allParams,
-      requestUrl: url.toString().substring(0, 200) + "..."
-    });
+    console.error("Missing App Proxy parameters");
     return { shop: null, loggedInCustomerId: null, isValid: false };
   }
 
   // Get app secret from environment
   const appSecret = process.env.SHOPIFY_API_SECRET;
   if (!appSecret) {
-    console.error("SHOPIFY_API_SECRET not configured", {
-      hasSecret: !!process.env.SHOPIFY_API_SECRET,
-      secretLength: process.env.SHOPIFY_API_SECRET?.length || 0,
-      shop,
-      allParams
-    });
+    console.error("SHOPIFY_API_SECRET not configured");
     return { shop, loggedInCustomerId, isValid: false };
   }
 
@@ -90,30 +79,11 @@ export async function verifyAppProxyRequest(request) {
   const devMode = process.env.NODE_ENV === "development" || process.env.ALLOW_DEV_PROXY === "true";
   
   if (!isValid) {
-    console.error("App Proxy signature mismatch", {
-      shop,
-      expectedHmac: hmac.substring(0, 20) + "...",
-      receivedSignature: signature.substring(0, 20) + "...",
-      message: sortedParams.substring(0, 200),
-      fullMessage: sortedParams,
-      allQueryParams: allParams,
-      requestUrl: url.toString().substring(0, 300),
-      secretConfigured: !!appSecret,
-      secretLength: appSecret?.length || 0,
-      devMode,
-      hint: devMode ? "Dev mode: signature check may be bypassed" : "Check App Proxy URL in Partners Dashboard matches current tunnel URL"
-    });
+    console.error("App Proxy signature mismatch");
   }
 
   if (!isRecent) {
-    console.error("App Proxy timestamp too old", {
-      shop,
-      requestTime,
-      currentTime,
-      timeDiff,
-      requestTimeDate: new Date(requestTime * 1000).toISOString(),
-      currentTimeDate: new Date(currentTime * 1000).toISOString(),
-    });
+    console.error("App Proxy timestamp too old");
   }
 
   // In development mode, if signature fails but we have shop and timestamp, allow it
@@ -121,11 +91,7 @@ export async function verifyAppProxyRequest(request) {
   let finalIsValid = isValid && isRecent;
   
   if (devMode && !isValid && shop && timestamp && isRecent) {
-    console.warn("⚠️  DEV MODE: Bypassing App Proxy signature verification. This should NOT happen in production!", {
-      shop,
-      reason: "App Proxy URL in Partners Dashboard may not match current tunnel URL",
-      action: "Update App Proxy URL in Partners Dashboard to match your current tunnel URL"
-    });
+    console.warn("⚠️  DEV MODE: Bypassing App Proxy signature verification");
     finalIsValid = true; // Allow in dev mode if we have shop, timestamp, and it's recent
   }
 

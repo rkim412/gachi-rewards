@@ -40,10 +40,9 @@ export default defineConfig({
     allowedHosts: [
       host,
     ],
-    cors: {
-      preflightContinue: true,
-    },
-    port: 3000,
+    cors: true,
+    // Use PORT env var from Shopify CLI when using roles, fallback to 3000
+    port: parseInt(process.env.PORT || process.env.SERVER_PORT || process.env.BACKEND_PORT) || 3000,
     hmr: hmrConfig,
     fs: {
       // See https://vitejs.dev/config/server-options.html#server-fs-allow for more information

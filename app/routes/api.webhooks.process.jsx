@@ -44,7 +44,7 @@ async function processWebhookRecord(webhook) {
     const queueRecord = {
       id: webhook.id,
       topic: webhook.topic,
-      shop: webhook.shop,
+      siteId: webhook.siteId, // Use siteId field (shop domain string)
       payload: webhook.payload,
     };
 

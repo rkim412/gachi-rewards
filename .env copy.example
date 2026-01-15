@@ -27,5 +27,11 @@ DIRECT_URL=postgresql://neondb_owner:password@ep-xxx.region.aws.neon.tech/neondb
 # Get from: https://partners.shopify.com → Your App → App setup → Webhooks → Webhook signing secret
 WEBHOOK_SECRET=your_webhook_secret_here
 
+# Storefront API Access Token (Required for cart metafields)
+# Get from: https://partners.shopify.com → Your App → App setup → API credentials → Storefront API
+# Enable scopes: read_cart, write_cart
+# Copy the Storefront API access token (different from Admin API token)
+SHOPIFY_STOREFRONT_ACCESS_TOKEN=your_storefront_api_access_token_here
+
 # Node Environment
-NODE_ENV=production
+NODE_ENV=development

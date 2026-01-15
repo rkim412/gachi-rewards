@@ -8,7 +8,6 @@ pub mod schema {
 
 mod cart_lines_discounts_generate_run;
 
-fn main() {
-    log!("Invoke a named export");
-    std::process::abort();
-}
+// Note: No main() function needed for Shopify Functions
+// The #[shopify_function] annotated function in cart_lines_discounts_generate_run.rs
+// is automatically exported and called by Shopify's runtime

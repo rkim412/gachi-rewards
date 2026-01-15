@@ -2,12 +2,10 @@
   "name": "thank-you-referral",
   "version": "1.0.0",
   "dependencies": {
-    "preact": "^10.10.x",
-    "@preact/signals": "^2.3.x",
+    "preact": "10.28.0",
     "@shopify/ui-extensions": "2025.10.x"
   },
   "overrides": {
     "@shopify/ui-extensions": "2025.10.x"
   }
 }
-

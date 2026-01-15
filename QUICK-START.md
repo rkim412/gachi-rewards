@@ -84,8 +84,6 @@ NODE_ENV=development
 - `your_api_key_here` → Your API key from Step 3
 - `your_api_secret_here` → Your API secret from Step 3
 
-> **💡 Production Setup:** For production deployment, see [VERCEL-SETUP-CHECKLIST.md](./VERCEL-SETUP-CHECKLIST.md) for complete Vercel setup and URL configuration.
-
 ---
 
 ## Step 5: Start Development Server (1 minute)
@@ -94,23 +92,15 @@ NODE_ENV=development
 npm run dev
 ```
 
-**Note:** For production, deploy to Vercel instead. See [VERCEL-SETUP-CHECKLIST.md](./VERCEL-SETUP-CHECKLIST.md) for complete setup.
+This will:
+- Start your local server at `http://localhost:3000`
+- Create a secure tunnel (automatically managed by Shopify CLI)
+- Update URLs in Partners Dashboard automatically
+- Forward webhooks to your local server
 
 ---
 
-## Step 6: Deploy to Vercel (Production)
-
-For production deployment:
-
-1. **Follow [VERCEL-SETUP-CHECKLIST.md](./VERCEL-SETUP-CHECKLIST.md)** for complete setup
-2. **Update Shopify Partners Dashboard** with your Vercel URL:
-   - App URL: `https://your-project.vercel.app/`
-   - Redirect URL: `https://your-project.vercel.app/auth`
-   - App Proxy: `https://your-project.vercel.app/apps/gachi-rewards`
-
----
-
-## Step 7: Deploy Extensions (1 minute)
+## Step 6: Deploy Extensions (1 minute)
 
 Open a **new terminal** (keep dev server running):
 
@@ -126,7 +116,7 @@ Wait for completion (~1-2 minutes). This deploys:
 
 ---
 
-## Step 8: Install App in Development Store (30 seconds)
+## Step 7: Install App in Development Store (30 seconds)
 
 1. Go to your development store admin
    - Find at: https://partners.shopify.com → Stores
@@ -136,7 +126,7 @@ Wait for completion (~1-2 minutes). This deploys:
 
 ---
 
-## Step 9: Test It! (2 minutes)
+## Step 8: Test It! (2 minutes)
 
 ### Test 1: Make a Purchase
 1. Go to your development store
@@ -257,8 +247,9 @@ This can happen with SQLite. Try these fixes:
 - No extra spaces or quotes around values
 
 **"App Proxy returns 401"**
-- Verify App Proxy URL matches your Vercel URL (if using production)
+- Verify App Proxy URL is configured correctly in Partners Dashboard
 - Must end with `/apps/gachi-rewards`
+- Shopify CLI should update this automatically when running `shopify app dev`
 
 **Extensions not showing**
 - Run `shopify app deploy` again
@@ -273,12 +264,6 @@ Your local environment is running. You can now:
 - Test the referral flow end-to-end
 - Debug issues locally
 - View database in Prisma Studio (`npm run db:studio`)
-
----
-
-## 📚 Next Steps
-
-- **Vercel Deployment**: See [VERCEL-SETUP-CHECKLIST.md](./VERCEL-SETUP-CHECKLIST.md) for complete Vercel setup and URL configuration
 
 ---
 

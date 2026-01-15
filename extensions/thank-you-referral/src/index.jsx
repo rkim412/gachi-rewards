@@ -1,141 +1,185 @@
-import '@shopify/ui-extensions/preact';
-import { render } from 'preact';
-import { useState, useEffect } from 'preact/hooks';
+// Polaris web components extension for Checkout Thank You page
+// Uses vanilla JavaScript with <s-*> custom elements
+// No Preact, no Signals, no createComponent
 
-export default function extension() {
-  render(<ReferralThankYou />, document.body);
+// DIRECT URL APPROACH: Bypass app proxy to avoid password protection CORS issues
+// Update this URL when the tunnel changes (run `shopify app dev` to get new URL)
+const DIRECT_API_URL = 'https://alfred-manually-financing-horn.trycloudflare.com/apps/gachi-rewards/api/generate';
+
+export default async function extension(api) {
+  // Create container for the extension
+  const container = document.createElement('s-stack');
+  container.setAttribute('direction', 'block');
+  container.setAttribute('gap', 'base');
+  
+  // Show loading state
+  const loadingText = document.createElement('s-text');
+  loadingText.textContent = 'Loading your referral code...';
+  container.appendChild(loadingText);
+  document.body.appendChild(container);
+
+  try {
+    // Fetch referral data
+    const data = await fetchReferralLink(api);
+    
+    if (data && data.referralLink) {
+      // Remove loading text
+      container.removeChild(loadingText);
+      
+      // Create success banner
+      const banner = document.createElement('s-banner');
+      banner.setAttribute('tone', 'success');
+      banner.setAttribute('heading', 'Share and earn rewards!');
+      
+      // Create content stack inside banner
+      const contentStack = document.createElement('s-stack');
+      contentStack.setAttribute('direction', 'block');
+      contentStack.setAttribute('gap', 'small-100');
+      
+      // Referral code text (strong)
+      const codeText = document.createElement('s-text');
+      codeText.setAttribute('type', 'strong');
+      codeText.textContent = `Your referral code: ${data.referralCode}`;
+      contentStack.appendChild(codeText);
+      
+      // Reward description
+      const rewardText = document.createElement('s-text');
+      rewardText.textContent = 'Share this code and earn 10% on each referral!';
+      contentStack.appendChild(rewardText);
+      
+      // Referral link (small + subdued)
+      const linkText = document.createElement('s-text');
+      linkText.setAttribute('type', 'small');
+      linkText.setAttribute('color', 'subdued');
+      linkText.textContent = data.referralLink;
+      contentStack.appendChild(linkText);
+      
+      // Copy button
+      const copyButton = document.createElement('s-button');
+      copyButton.textContent = 'Copy Link';
+      copyButton.onclick = async () => {
+        try {
+          await navigator.clipboard.writeText(data.referralLink);
+          copyButton.textContent = 'Copied!';
+          setTimeout(() => {
+            copyButton.textContent = 'Copy Link';
+          }, 2000);
+        } catch (e) {
+          console.log('[THANK YOU PAGE] Clipboard not available');
+        }
+      };
+      contentStack.appendChild(copyButton);
+      
+      // Add content to banner
+      banner.appendChild(contentStack);
+      
+      // Add banner to container
+      container.appendChild(banner);
+    }
+  } catch (err) {
+    console.error('[THANK YOU PAGE] Error:', err);
+    // Remove loading text on error (silent fail)
+    if (container.contains(loadingText)) {
+      container.removeChild(loadingText);
+    }
+  }
 }
 
-function ReferralThankYou() {
-  const [loading, setLoading] = useState(true);
-  const [referralLink, setReferralLink] = useState(null);
-  const [referralCode, setReferralCode] = useState(null);
-  const [error, setError] = useState(null);
+async function fetchReferralLink(api) {
+  // Safely extract data from API
+  let shop = null;
+  let orderId = null;
+  let orderNumber = null;
+  let customerId = null;
+  let email = null;
 
-  useEffect(() => {
-    fetchReferralLink();
-  }, []);
+  try {
+    // Get shop domain
+    if (api?.shop?.myshopifyDomain) {
+      shop = String(api.shop.myshopifyDomain);
+    }
+    
+    // Get order data
+    if (api?.order?.id) {
+      orderId = String(api.order.id);
+    }
+    if (api?.order?.number) {
+      orderNumber = String(api.order.number);
+    }
+    
+    // Get customer data
+    if (api?.buyerIdentity?.customer?.id) {
+      customerId = String(api.buyerIdentity.customer.id);
+    }
+    if (api?.buyerIdentity?.customer?.email) {
+      email = String(api.buyerIdentity.customer.email);
+    } else if (api?.buyerIdentity?.email) {
+      email = String(api.buyerIdentity.email);
+    }
+  } catch (apiError) {
+    console.log('[THANK YOU PAGE] Error accessing API:', apiError);
+  }
 
-  const fetchReferralLink = async () => {
+  // Fallback: try global shopify object if api doesn't have data
+  if (!shop || !orderId) {
     try {
-      setLoading(true);
-      setError(null);
-
-      // Access data from global shopify object
-      let order = null;
-      let customer = null;
-      let email = null;
-      let apiUrl = "/apps/gachi-rewards/api/generate";
-
-      try {
-        if (typeof shopify !== 'undefined') {
-          // Access order confirmation
-          if (shopify.orderConfirmation) {
-            const orderConfirmation = await shopify.orderConfirmation;
-            order = orderConfirmation?.order;
-          }
-          
-          // Access buyer identity
-          if (shopify.buyerIdentity) {
-            const buyerIdentity = await shopify.buyerIdentity;
-            customer = buyerIdentity?.customer;
-            email = customer?.email || buyerIdentity?.email;
-          }
-          
-          // Access settings
-          if (shopify.settings) {
-            const settings = await shopify.settings;
-            if (settings?.api_url) {
-              apiUrl = settings.api_url;
-            }
-          }
+      if (typeof shopify !== 'undefined') {
+        if (!shop) {
+          shop = String(shopify.shop?.myshopifyDomain || shopify.shop?.value?.myshopifyDomain || '');
         }
-      } catch (apiError) {
-        // Fallback if shopify object not available
+        if (!orderId) {
+          const orderObj = shopify.orderConfirmation?.value?.order;
+          orderId = orderObj?.id ? String(orderObj.id) : null;
+          orderNumber = orderObj?.number ? String(orderObj.number) : null;
+        }
+        if (!customerId && !email) {
+          const buyerIdentity = shopify.buyerIdentity?.value;
+          customerId = buyerIdentity?.customer?.id ? String(buyerIdentity.customer.id) : null;
+          email = buyerIdentity?.customer?.email || buyerIdentity?.email || null;
+          if (email) email = String(email);
+        }
       }
-
-      const params = new URLSearchParams();
-      if (order?.id) params.append("orderId", order.id);
-      if (order?.number) params.append("orderNumber", order.number);
-      if (customer?.id) params.append("customerId", customer.id);
-      if (email) params.append("customerEmail", email);
-
-      console.log('[THANK YOU PAGE] Fetching referral link:', {
-        apiUrl,
-        orderId: order?.id,
-        orderNumber: order?.number,
-        customerId: customer?.id,
-        email,
-        params: params.toString(),
-      });
-
-      const response = await fetch(`${apiUrl}${params.toString() ? `?${params}` : ''}`, {
-        method: "GET",
-        headers: { "Content-Type": "application/json" },
-      });
-
-      if (!response.ok) {
-        throw new Error(`API returned ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log('[THANK YOU PAGE] API response:', {
-        success: data.success,
-        referralCode: data.referralCode,
-        hasReferralLink: !!data.referralLink,
-        error: data.error,
-      });
-      
-      if (data.success && data.referralLink) {
-        setReferralLink(data.referralLink);
-        setReferralCode(data.referralCode || data.referralLink.match(/[?&]ref=([^&]+)/)?.[1]);
-      } else {
-        console.error('[THANK YOU PAGE] API error:', data.error);
-        setError(data.error || "Failed to generate referral link");
-      }
-    } catch (err) {
-      setError(`Failed to load referral link: ${err.message}`);
-    } finally {
-      setLoading(false);
+    } catch (e) {
+      console.log('[THANK YOU PAGE] Error accessing global shopify:', e);
     }
-  };
-
-  const copyToClipboard = async () => {
-    if (referralLink) {
-      try {
-        await navigator.clipboard.writeText(referralLink);
-      } catch {}
-    }
-  };
-
-  if (loading) {
-    return (
-      <s-banner status="info">
-        <s-text>Generating your referral link...</s-text>
-      </s-banner>
-    );
   }
 
-  if (error || !referralLink) {
-    return null;
+  // Build query params
+  const params = new URLSearchParams();
+  if (shop) params.append("shop", shop);
+  if (orderId) params.append("orderId", orderId);
+  if (orderNumber) params.append("orderNumber", orderNumber);
+  if (customerId) params.append("customerId", customerId);
+  if (email) params.append("customerEmail", email);
+
+  console.log('[THANK YOU PAGE] Fetching referral link:', {
+    shop,
+    apiUrl: DIRECT_API_URL,
+    orderId,
+    orderNumber,
+    customerId,
+    email,
+    params: params.toString(),
+  });
+
+  const response = await fetch(`${DIRECT_API_URL}${params.toString() ? `?${params}` : ''}`, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+  });
+
+  if (!response.ok) {
+    throw new Error(`API returned ${response.status}`);
   }
 
-  return (
-    <s-banner status="success">
-      <s-stack direction="block" gap="base">
-        <s-text size="large" emphasis="bold">
-          Share and earn rewards!
-        </s-text>
-        <s-text>
-          Share code <s-text emphasis="bold">{referralCode || "CODE"}</s-text> and earn 10% on each referral!
-        </s-text>
-        <s-stack direction="block" gap="tight">
-          <s-text size="small" appearance="subdued">
-            {referralLink}
-          </s-text>
-          <s-button onClick={copyToClipboard}>Copy Link</s-button>
-        </s-stack>
-      </s-stack>
-    </s-banner>
-  );
+  const rawData = await response.json();
+  console.log('[THANK YOU PAGE] API response:', rawData);
+  
+  if (rawData.success && rawData.referralLink) {
+    return {
+      referralLink: String(rawData.referralLink),
+      referralCode: String(rawData.referralCode || ''),
+    };
+  } else {
+    throw new Error(rawData.error || "Failed to generate referral link");
+  }
 }

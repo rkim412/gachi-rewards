@@ -26,21 +26,9 @@ Quick steps:
 4. Run migrations: `npm run db:migrate`
 5. Start dev server: `npm run dev`
 
-### For Production Deployment
-
-See **[VERCEL-SETUP-CHECKLIST.md](./VERCEL-SETUP-CHECKLIST.md)** for complete Vercel deployment checklist.
-
-Quick steps:
-1. Push code to GitHub
-2. Import to Vercel
-3. Create Neon PostgreSQL database
-4. Add environment variables
-5. Deploy!
-
 ## Documentation
 
 - **[QUICK-START.md](./QUICK-START.md)** - **🚀 5-minute quick start guide** ⭐
-- **[VERCEL-SETUP-CHECKLIST.md](./VERCEL-SETUP-CHECKLIST.md)** - **✅ Complete Vercel deployment checklist**
 
 ### Deploy Shopify Extensions
 
@@ -51,8 +39,7 @@ shopify app deploy
 ## Tech Stack
 
 - **Framework**: React Router
-- **Database**: Prisma + PostgreSQL
-- **Hosting**: Vercel
+- **Database**: Prisma + SQLite (local) or PostgreSQL
 - **Shopify**: App Bridge, Checkout UI Extensions, Theme App Extensions
 
 ## Project Structure
@@ -76,17 +63,13 @@ Required environment variables:
 
 - `SHOPIFY_API_KEY` - Your Shopify app API key
 - `SHOPIFY_API_SECRET` - Your Shopify app secret
-- `SHOPIFY_APP_URL` - Your app URL (e.g., `https://your-app.vercel.app`)
+- `SHOPIFY_APP_URL` - Your app URL (use `http://localhost:3000` for local)
 - `SCOPES` - Comma-separated Shopify scopes
-- `DATABASE_URL` - PostgreSQL connection string (pooled - for Prisma Client)
-  - **Production**: Use Neon PostgreSQL pooled connection string (has `-pooler` in hostname)
-  - **Local**: Use `file:./prisma/dev.sqlite` for SQLite or a PostgreSQL connection string
-  - Format: `postgresql://user:password@ep-xxx-pooler.region.aws.neon.tech/dbname?connect_timeout=15&sslmode=require`
-- `DIRECT_URL` - PostgreSQL direct connection string (optional - for Prisma CLI)
-  - **Production**: Use Neon PostgreSQL direct connection string (no `-pooler` in hostname)
-  - Used by Prisma CLI commands (migrations, generate) via `prisma.config.ts`
-  - Format: `postgresql://user:password@ep-xxx.region.aws.neon.tech/dbname?sslmode=require`
-- `NODE_ENV` - Set to `production` for production
+- `DATABASE_URL` - Database connection string
+  - **Local (SQLite)**: `file:./prisma/dev.sqlite`
+  - **Local (PostgreSQL)**: `postgresql://user:password@localhost:5432/dbname`
+- `SHOPIFY_STOREFRONT_ACCESS_TOKEN` - Storefront API access token (for cart metafields)
+- `NODE_ENV` - Set to `development` for local development
 
 ## License
 

@@ -17,7 +17,7 @@ The function is automatically built by Shopify CLI when you run `shopify app dep
 To build manually:
 ```bash
 cd extensions/referral-discount-function
-cargo build --target wasm32-unknown-unknown --release
+cargo build --target wasm32-wasip1 --release
 ```
 
 ## Testing

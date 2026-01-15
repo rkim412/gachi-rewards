@@ -13,7 +13,6 @@
     "docker-start": "npm run setup && npm run start",
     "setup": "prisma generate && prisma migrate dev",
     "resolve-migration": "node scripts/resolve-failed-migration.js",
-    "setup:prod": "prisma generate --schema=./prisma/schema.prisma && (npm run resolve-migration || true) && (prisma migrate deploy || (echo '⚠️  Migration deploy failed - check DATABASE_URL' && exit 0))",
     "postinstall": "prisma generate",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
@@ -23,7 +22,10 @@
     "prisma": "prisma",
     "graphql-codegen": "graphql-codegen",
     "vite": "vite",
-    "typecheck": "react-router typegen && tsc --noEmit"
+    "typecheck": "react-router typegen && tsc --noEmit",
+    "test:storefront-api": "node scripts/test-storefront-api.js",
+    "webhook:process": "node scripts/process-webhook-queue.js",
+    "webhook:watch": "node scripts/process-webhook-queue.js --watch"
   },
   "type": "module",
   "engines": {
@@ -31,7 +33,6 @@
   },
   "dependencies": {
     "@prisma/client": "^6.19.0",
-    "@prisma/extension-accelerate": "^2.0.2",
     "@react-router/dev": "^7.9.3",
     "@react-router/fs-routes": "^7.9.3",
     "@react-router/node": "^7.9.3",

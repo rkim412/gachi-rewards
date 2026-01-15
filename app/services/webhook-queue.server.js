@@ -20,7 +20,7 @@ export async function queueWebhook(topic, shop, payload) {
     const queueRecord = await prisma.webhookQueue.create({
       data: {
         topic,
-        shop,
+        siteId: shop, // Use siteId field (shop is the shop domain string)
         payload: JSON.stringify(payload),
         status: "pending",
         attempts: 0,

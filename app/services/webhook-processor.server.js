@@ -1,11 +1,13 @@
-import { createReferralJoin, markSafeLinkUsed, findOrCreateReferralCode } from "./referral.server.js";
-import { createShopifyDiscount } from "./discount.server.js";
+import { createReferralJoin, markDiscountCodeUsed, findOrCreateReferralCode } from "./referral.server.js";
 import prisma from "../db.server.js";
 
 /**
  * Webhook Processor
  * Processes webhooks synchronously
  * Handles the actual business logic for webhook events
+ * 
+ * NOTE: Shopify discount codes are NOT created here.
+ * Discounts are created when someone USES a referral link (via /api/safe-link)
  */
 
 /**
@@ -22,52 +24,22 @@ async function processOrdersCreate(shop, order) {
     try {
       // Convert customer ID to string (Shopify sends it as a number)
       const customerId = order.customer?.id 
-        ? String(order.customer.id)  // Convert number to string
+        ? String(order.customer.id)
         : `guest-${order.email || order.id}`;
       const customerEmail = order.email || `guest-${order.id}@temp.com`;
 
       // Find or create referral code for this customer
-      const referralCodeRecord = await findOrCreateReferralCode({
+      // NOTE: No Shopify discount is created here - that happens when someone USES the referral link
+      await findOrCreateReferralCode({
         shop,
         storefrontUserId: customerId,
         email: customerEmail,
       });
 
-      // If discount code doesn't exist yet, try to create it in Shopify
-      // Note: Webhooks typically don't have admin access, so discount creation
-      // will likely be deferred until the Thank You page loads (which has admin access)
-      if (!referralCodeRecord.discountCode || !referralCodeRecord.shopifyDiscountId) {
-        try {
-          // Get shop config for discount percentage
-          const config = await prisma.referralConfig.findUnique({
-            where: { siteId: shop },
-          });
-
-          const discountPercentage = config?.amount || 10.0;
-          const discountCodeName = `GACHI-${referralCodeRecord.referralCode}`;
-
-          // Try to create discount - this will likely fail in webhook context
-          // (webhooks don't have admin access), but that's okay.
-          // The discount will be created when the Thank You page loads.
-          try {
-            // Note: createShopifyDiscount requires a request object with admin session
-            // Webhooks don't have admin access, so this will likely fail
-            // We'll skip this for now and let the Thank You page handle it
-            console.log(`Referral code ${referralCodeRecord.referralCode} created for customer ${customerEmail}. Discount will be created on Thank You page.`);
-          } catch (discountError) {
-            // Expected: Webhooks don't have admin access, so discount creation fails
-            console.log(`Referral code ${referralCodeRecord.referralCode} created for customer ${customerEmail}. Discount will be created on Thank You page.`);
-          }
-        } catch (error) {
-          // Log but don't fail - discount can be created later
-          console.log(`Referral code created but discount creation skipped:`, error.message);
-        }
-      } else {
-        console.log(`Customer ${customerEmail} already has referral code ${referralCodeRecord.referralCode}`);
-      }
+      console.log(`[WEBHOOK PROCESSOR] Created/found referral code for customer ${customerId}`);
     } catch (error) {
       // Log but don't fail webhook - referral code creation is not critical for order processing
-      console.error(`Error auto-creating referral code:`, error);
+      console.error(`[WEBHOOK PROCESSOR] Error auto-creating referral code:`, error);
     }
   }
 
@@ -80,10 +52,10 @@ async function processOrdersCreate(shop, order) {
 
   // Check order attributes (set by storefront script)
   const refAttribute = order.note_attributes?.find(
-    (attr) => attr.name === "gachi_ref"
+    (attr) => attr.name === "referral_ref"
   );
   const discountAttribute = order.note_attributes?.find(
-    (attr) => attr.name === "gachi_discount_code"
+    (attr) => attr.name === "referral_shopify_discount_code"
   );
 
   if (refAttribute) {
@@ -94,14 +66,17 @@ async function processOrdersCreate(shop, order) {
     discountCode = discountAttribute.value;
   }
 
-  // Also check discount codes applied
+  // Also check discount codes applied (most reliable source for Discount Functions)
   if (order.discount_codes && order.discount_codes.length > 0) {
     const appliedDiscount = order.discount_codes[0];
     discountCode = appliedDiscount.code;
 
-    // Try to extract referral code from discount code format: GACHI-ALICE123
+    // Try to extract referral code from discount code format
+    // Format: GACHI-ALICE123 (main code) or GACHI-ALICE123-ABC1 (one-time discount)
+    // Extract just the referral code part (first segment after GACHI-)
     if (discountCode.startsWith("GACHI-")) {
-      const extractedCode = discountCode.replace("GACHI-", "");
+      const parts = discountCode.replace("GACHI-", "").split("-");
+      const extractedCode = parts[0]; // Get first part (ALICE123)
       // Only use if we don't already have a referral code
       if (!referralCode) {
         referralCode = extractedCode;
@@ -114,27 +89,63 @@ async function processOrdersCreate(shop, order) {
     discountAmount = parseFloat(order.total_discounts);
   }
 
-  // If we have a referral code, create referral join
-  if (referralCode) {
+  // If we have a referral code or discount code, create referral join
+  if (referralCode || discountCode) {
     try {
-      // Check if this is from a safe link (one-time code)
-      const safeLink = await prisma.referralSafeLink.findFirst({
-        where: {
-          oneTimeCode: {
-            contains: referralCode,
+      let discountCodeRecord = null;
+      
+      // First, try to find discount code record by code (most reliable - this is what was applied at checkout)
+      if (discountCode) {
+        discountCodeRecord = await prisma.referralDiscountCode.findFirst({
+          where: {
+            code: discountCode,
+            used: false,
           },
-          used: false,
-        },
-        include: {
-          referralCode: true,
-        },
-      });
+          include: {
+            referralCode: true,
+          },
+        });
 
-      if (safeLink) {
-        // Use the actual referral code from the safe link
-        referralCode = safeLink.referralCode.referralCode;
-        // Mark safe link as used
-        await markSafeLinkUsed(safeLink.oneTimeCode, order.id);
+        if (discountCodeRecord) {
+          // Use the actual referral code from the discount code record
+          referralCode = discountCodeRecord.referralCode.code;
+          // Mark discount code as used
+          await markDiscountCodeUsed(discountCodeRecord.oneTimeCode, order.id);
+        }
+      }
+
+      // If no discount code record found by code, try by referral code (legacy/fallback)
+      if (!discountCodeRecord && referralCode) {
+        discountCodeRecord = await prisma.referralDiscountCode.findFirst({
+          where: {
+            referralCode: {
+              code: referralCode,
+            },
+            used: false,
+          },
+          include: {
+            referralCode: true,
+          },
+        });
+
+        if (discountCodeRecord) {
+          // Mark discount code as used
+          await markDiscountCodeUsed(discountCodeRecord.oneTimeCode, order.id);
+        }
+      }
+
+      // If we still don't have a referral code but have a discount code, try to extract it
+      // Format: GACHI-ALICE123-ABC1 -> extract ALICE123 (first part after GACHI-)
+      if (!referralCode && discountCode && discountCode.startsWith("GACHI-")) {
+        const parts = discountCode.replace("GACHI-", "").split("-");
+        if (parts.length >= 1) {
+          referralCode = parts[0];
+        }
+      }
+
+      // Ensure we have a referral code before creating join
+      if (!referralCode) {
+        return;
       }
 
       await createReferralJoin({
@@ -148,8 +159,6 @@ async function processOrdersCreate(shop, order) {
         orderTotal: parseFloat(order.total_price),
         discountAmount,
       });
-
-      console.log(`Referral join created for order ${order.id}`);
     } catch (error) {
       // Log error but don't fail webhook
       console.error(`Error creating referral join:`, error);
@@ -163,7 +172,8 @@ async function processOrdersCreate(shop, order) {
  * @returns {Promise<void>}
  */
 export async function processWebhook(queueRecord) {
-  const { topic, shop, payload } = queueRecord;
+  const { topic, siteId, payload } = queueRecord;
+  const shop = siteId; // siteId is the shop domain string
 
   try {
     // Parse payload (if it's a string)
@@ -177,13 +187,11 @@ export async function processWebhook(queueRecord) {
 
       case "app/uninstalled":
         // Handle app uninstall
-        console.log(`App uninstalled from ${shop}`);
         // Add cleanup logic here if needed
         break;
 
       case "app/scopes_update":
         // Handle scopes update
-        console.log(`Scopes updated for ${shop}`);
         // Add scopes update logic here if needed
         break;
 
@@ -191,17 +199,13 @@ export async function processWebhook(queueRecord) {
       case "customers/redact":
       case "shop/redact":
         // Compliance webhooks are handled separately
-        console.log(`Compliance webhook ${topic} for ${shop}`);
         break;
 
       default:
-        console.log(`Unknown webhook topic: ${topic} for ${shop}`);
+        console.warn(`Unknown webhook topic: ${topic} for ${shop}`);
     }
-
-    console.log(`[WEBHOOK PROCESSOR] Successfully processed webhook (${topic}) for ${shop}`);
   } catch (error) {
     console.error(`[WEBHOOK PROCESSOR] Failed to process webhook:`, error);
     throw error; // Re-throw so caller knows it failed
   }
 }
-

@@ -1,25 +1,20 @@
-// Prisma Client with Accelerate extension for connection pooling
+// Prisma Client for local development (SQLite)
+// Note: Accelerate removed for local development - not needed for SQLite
+// For production serverless environments, Accelerate can be added back if needed
 import { PrismaClient } from "@prisma/client";
-import { withAccelerate } from "@prisma/extension-accelerate";
 
-// Create Prisma client with Accelerate extension
-// Accelerate provides connection pooling and caching for serverless environments
+// Create Prisma client
 const createPrismaClient = () => {
   if (!process.env.DATABASE_URL) {
     throw new Error("DATABASE_URL environment variable is not set");
   }
 
-  const client = new PrismaClient({
+  return new PrismaClient({
     log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
   });
-
-  // Extend client with Accelerate for connection pooling
-  return client.$extends(withAccelerate());
 };
 
 // Reuse client in development to avoid too many connections
-// In production (serverless), each function invocation may create a new client
-// Accelerate handles connection pooling efficiently
 if (process.env.NODE_ENV !== "production") {
   if (!global.prismaGlobal) {
     global.prismaGlobal = createPrismaClient();

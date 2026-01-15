@@ -2,11 +2,13 @@
 
 client_id = "f232a78339525e79f08b9bcec3b61b8f"
 name = "Gachi Rewards"
-application_url = "https://gachi-rewards.vercel.app"
+# Note: When running 'shopify app dev', the CLI automatically manages URLs via tunneling
+# These URLs are placeholders - the CLI will update them automatically
+application_url = "http://localhost:3000"
 embedded = true
 
 [build]
-automatically_update_urls_on_dev = false  # Vercel URL is stable - no auto-updates needed
+automatically_update_urls_on_dev = true  # Let Shopify CLI manage URLs in dev mode
 
 [webhooks]
 api_version = "2025-10"
@@ -36,9 +38,15 @@ api_version = "2025-10"
 scopes = "read_customers,read_discounts,read_orders,write_app_proxy,write_customers,write_discounts,write_products"
 
 [auth]
-redirect_urls = [ "https://gachi-rewards.vercel.app/auth" ]
+# Note: Shopify CLI will automatically update this URL when running 'shopify app dev'
+redirect_urls = [ "http://localhost:3000/auth" ]
 
 [app_proxy]
-url = "https://gachi-rewards.vercel.app/apps/gachi-rewards"
+url = "/apps/gachi-rewards"
 subpath = "gachi-rewards"
 prefix = "apps"
+
+# Note: Cart metafields cannot be defined in shopify.app.toml
+# They are created dynamically via Storefront API when needed (namespace: $app)
+# Metafields will work without definitions, but definitions can be created
+# via Admin API for better validation and admin visibility if desired

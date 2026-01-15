@@ -14,6 +14,9 @@ handle = "thank-you-referral"
 target = "purchase.thank-you.block.render"
 module = "./src/index.jsx"
 
+[extensions.capabilities]
+network_access = true
+
 [extensions.settings]
 [[extensions.settings.fields]]
 key = "title"

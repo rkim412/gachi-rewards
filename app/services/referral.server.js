@@ -28,7 +28,7 @@ export function validateReferralCode(code) {
  * @param {string} params.shop - Shop domain
  * @param {string} params.storefrontUserId - Shopify Customer ID (GID)
  * @param {string} params.email - Customer email
- * @returns {Promise<ReferralDiscountCode>} - The referral code record
+ * @returns {Promise<ReferralCode>} - The referral code record
  */
 export async function findOrCreateReferralCode({
   shop,
@@ -37,61 +37,95 @@ export async function findOrCreateReferralCode({
 }) {
   const siteId = shop;
 
-  // Check if user already exists by storefrontUserId
-  let user = await prisma.storefrontUser.findUnique({
-    where: {
-      storefrontUserId_siteId: {
-        storefrontUserId,
-        siteId,
-      },
-    },
-    include: {
-      referralDiscountCode: true,
-    },
-  });
-
-  // If not found and this is a registered customer (has Shopify GID),
-  // check if a guest entry exists with the same email
-  if (!user && storefrontUserId.startsWith('gid://shopify/Customer/') && email) {
-    // Find all users with this email and siteId, then filter for guest entries
+  // PRIMARY: Check if user already exists by email (more reliable than shopifyCustomerId)
+  // Email is more stable - customer IDs can change or vary in format, guest customers may have inconsistent IDs
+  let user = null;
+  if (email) {
     const usersWithEmail = await prisma.storefrontUser.findMany({
       where: {
         email: email,
         siteId: siteId,
       },
       include: {
-        referralDiscountCode: true,
+        referralCode: true,
       },
     });
 
-    // Find the first guest entry (storefrontUserId starts with 'guest-')
-    const guestUser = usersWithEmail.find(u => u.storefrontUserId.startsWith('guest-'));
-
-    // If guest entry found, update it to use the real customer ID
-    if (guestUser) {
-      console.log(`Merging guest entry (${guestUser.storefrontUserId}) with registered customer (${storefrontUserId}) for email ${email}`);
+    if (usersWithEmail.length > 0) {
+      // Found user(s) by email - use the first one that has a referral code, or the first one
+      const userWithCode = usersWithEmail.find(u => u.referralCode);
+      user = userWithCode || usersWithEmail[0];
       
-      // Update guest entry to registered customer
-      user = await prisma.storefrontUser.update({
-        where: { id: guestUser.id },
-        data: {
-          storefrontUserId: storefrontUserId, // Update to real Shopify GID
-        },
-        include: {
-          referralDiscountCode: true,
-        },
+      console.log(`[REFERRAL] Found user by email (primary lookup):`, {
+        shopifyCustomerId: user.shopifyCustomerId,
+        email: user.email,
+        hasReferralCode: !!user.referralCode,
       });
 
-      // If guest entry already had a referral code, return it
-      if (user.referralDiscountCode) {
-        return user.referralDiscountCode;
+      // If the shopifyCustomerId differs, update it to match the current request
+      // This helps merge entries when customer ID format changes
+      if (user.shopifyCustomerId !== storefrontUserId && !storefrontUserId.startsWith('guest-')) {
+        console.log(`[REFERRAL] Updating shopifyCustomerId from ${user.shopifyCustomerId} to ${storefrontUserId}`);
+        user = await prisma.storefrontUser.update({
+          where: { id: user.id },
+          data: {
+            shopifyCustomerId: storefrontUserId,
+          },
+          include: {
+            referralCode: true,
+          },
+        });
+      }
+
+      // If user has a referral code, return it
+      if (user.referralCode) {
+        return user.referralCode;
+      }
+    }
+  }
+
+  // FALLBACK: If not found by email, try to find by shopifyCustomerId
+  // This handles cases where email might not be available or differs slightly
+  if (!user && storefrontUserId) {
+    console.log(`[REFERRAL] User not found by email (${email}), trying shopifyCustomerId lookup: ${storefrontUserId}`);
+    
+    user = await prisma.storefrontUser.findUnique({
+      where: {
+        shopifyCustomerId_siteId: {
+          shopifyCustomerId: storefrontUserId,
+          siteId,
+        },
+      },
+      include: {
+        referralCode: true,
+      },
+    });
+
+    if (user) {
+      console.log(`[REFERRAL] Found user by shopifyCustomerId:`, {
+        shopifyCustomerId: user.shopifyCustomerId,
+        email: user.email,
+        hasReferralCode: !!user.referralCode,
+      });
+
+      // If email differs, log it as additional email (but don't update)
+      if (user.email !== email && email) {
+        console.log(`[REFERRAL] Additional email detected for shopifyCustomerId ${storefrontUserId}:`, {
+          storedEmail: user.email,
+          additionalEmail: email,
+        });
+      }
+
+      // If user has a referral code, return it
+      if (user.referralCode) {
+        return user.referralCode;
       }
     }
   }
 
   // If user already has a referral code, return it
-  if (user?.referralDiscountCode) {
-    return user.referralDiscountCode;
+  if (user?.referralCode) {
+    return user.referralCode;
   }
 
   // Create new user if doesn't exist
@@ -99,21 +133,21 @@ export async function findOrCreateReferralCode({
     user = await prisma.storefrontUser.create({
       data: {
         email,
-        storefrontUserId,
+        shopifyCustomerId: storefrontUserId,
         siteId,
       },
     });
   }
 
   // Generate unique referral code
-  let referralCode;
+  let code;
   let attempts = 0;
   do {
-    referralCode = generateReferralCode();
-    const exists = await prisma.referralDiscountCode.findUnique({
+    code = generateReferralCode();
+    const exists = await prisma.referralCode.findUnique({
       where: {
-        referralCode_siteId: {
-          referralCode,
+        code_siteId: {
+          code,
           siteId,
         },
       },
@@ -125,38 +159,37 @@ export async function findOrCreateReferralCode({
     }
   } while (true);
 
-  // Create referral discount code record (discount will be created separately)
+  // Create referral code record
   try {
     console.log(`[REFERRAL] Creating referral code in database:`, {
-      referralCode,
+      code,
       siteId,
-      referrerStorefrontUserId: user.id,
+      referrerId: user.id,
       userEmail: user.email,
       userId: user.id,
     });
     
-    const discountCodeRecord = await prisma.referralDiscountCode.create({
+    const referralCodeRecord = await prisma.referralCode.create({
       data: {
-        referralCode,
-        discountCode: "", // Will be updated after Shopify creates discount
+        code,
         siteId,
-        referrerStorefrontUserId: user.id,
+        referrerId: user.id,
       },
     });
 
     console.log(`[REFERRAL] Successfully created referral code in database:`, {
-      id: discountCodeRecord.id,
-      referralCode: discountCodeRecord.referralCode,
-      siteId: discountCodeRecord.siteId,
-      referrerStorefrontUserId: discountCodeRecord.referrerStorefrontUserId,
-      createdAt: discountCodeRecord.createdAt,
+      id: referralCodeRecord.id,
+      code: referralCodeRecord.code,
+      siteId: referralCodeRecord.siteId,
+      referrerId: referralCodeRecord.referrerId,
+      createdAt: referralCodeRecord.createdAt,
     });
 
     // Verify it was actually saved by reading it back
-    const verifyRecord = await prisma.referralDiscountCode.findUnique({
+    const verifyRecord = await prisma.referralCode.findUnique({
       where: {
-        referralCode_siteId: {
-          referralCode,
+        code_siteId: {
+          code,
           siteId,
         },
       },
@@ -168,35 +201,35 @@ export async function findOrCreateReferralCode({
       console.error(`[REFERRAL ERROR] Verification failed: Referral code not found after creation!`);
     }
 
-    return discountCodeRecord;
+    return referralCodeRecord;
   } catch (error) {
     console.error(`[REFERRAL ERROR] Failed to create referral code in database:`, {
       error: error.message,
       code: error.code,
       meta: error.meta,
-      referralCode,
+      referralCode: code,
       siteId,
-      referrerStorefrontUserId: user.id,
+      referrerId: user.id,
     });
     throw error; // Re-throw so caller knows it failed
   }
 }
 
 /**
- * Create a safe one-time link with unique discount code
+ * Create a one-time discount code from a referral code
  * @param {Object} params - Parameters
- * @param {string} params.referralCode - The referral code
+ * @param {string} params.referralCode - The referral code (e.g., "ALICE123")
  * @param {string} params.shop - Shop domain
- * @returns {Promise<Object>} - Safe link record with unique discount code
+ * @returns {Promise<Object>} - Discount code record with unique Shopify discount code
  */
-export async function createSafeLink({ referralCode, shop }) {
+export async function createDiscountCode({ referralCode, shop }) {
   const siteId = shop;
 
   // Find the referral code
-  const referralCodeRecord = await prisma.referralDiscountCode.findUnique({
+  const referralCodeRecord = await prisma.referralCode.findUnique({
     where: {
-      referralCode_siteId: {
-        referralCode,
+      code_siteId: {
+        code: referralCode,
         siteId,
       },
     },
@@ -211,22 +244,22 @@ export async function createSafeLink({ referralCode, shop }) {
     where: { siteId },
   });
 
-  const expiryHours = config?.safeLinkExpiryHours || 168; // 7 days default
+  const expiryHours = config?.discountCodeExpiryHours || 168; // 7 days default
   const expiresAt = new Date();
   expiresAt.setHours(expiresAt.getHours() + expiryHours);
 
-  // Generate unique one-time code
+  // Generate unique one-time code for tracking
   let oneTimeCode;
   let attempts = 0;
   do {
     oneTimeCode = generateReferralCode() + "-" + Date.now().toString(36).toUpperCase();
-    const exists = await prisma.referralSafeLink.findUnique({
+    const exists = await prisma.referralDiscountCode.findUnique({
       where: { oneTimeCode },
     });
     if (!exists) break;
     attempts++;
     if (attempts > 10) {
-      throw new Error("Failed to generate unique safe link");
+      throw new Error("Failed to generate unique discount code");
     }
   } while (true);
 
@@ -234,59 +267,59 @@ export async function createSafeLink({ referralCode, shop }) {
   const discountSuffix = generateReferralCode().substring(0, 6);
   const uniqueDiscountCode = `GACHI-${referralCode}-${discountSuffix}`;
 
-  const safeLink = await prisma.referralSafeLink.create({
+  const discountCodeRecord = await prisma.referralDiscountCode.create({
     data: {
       oneTimeCode,
       referralCodeId: referralCodeRecord.id,
       expiresAt,
-      discountCode: uniqueDiscountCode, // Store the unique discount code
+      code: uniqueDiscountCode, // Store the unique discount code
     },
   });
 
   return {
-    ...safeLink,
-    discountCode: uniqueDiscountCode, // Return unique code instead of shared one
+    ...discountCodeRecord,
+    discountCode: uniqueDiscountCode, // Return the discount code for use
   };
 }
 
 /**
- * Find referral code by safe link
+ * Find referral code by discount code's one-time code
  * @param {string} oneTimeCode - The one-time code
- * @returns {Promise<ReferralDiscountCode|null>} - The referral code or null
+ * @returns {Promise<ReferralCode|null>} - The referral code or null
  */
-export async function findReferralBySafeLink(oneTimeCode) {
-  const safeLink = await prisma.referralSafeLink.findUnique({
+export async function findReferralByDiscountCode(oneTimeCode) {
+  const discountCode = await prisma.referralDiscountCode.findUnique({
     where: { oneTimeCode },
     include: {
       referralCode: true,
     },
   });
 
-  if (!safeLink) {
+  if (!discountCode) {
     return null;
   }
 
   // Check if expired
-  if (safeLink.expiresAt && new Date() > safeLink.expiresAt) {
+  if (discountCode.expiresAt && new Date() > discountCode.expiresAt) {
     return null;
   }
 
   // Check if already used
-  if (safeLink.used) {
+  if (discountCode.used) {
     return null;
   }
 
-  return safeLink.referralCode;
+  return discountCode.referralCode;
 }
 
 /**
- * Mark safe link as used
+ * Mark discount code as used
  * @param {string} oneTimeCode - The one-time code
  * @param {string} orderId - Shopify order ID
- * @returns {Promise<ReferralSafeLink>} - Updated safe link
+ * @returns {Promise<ReferralDiscountCode>} - Updated discount code record
  */
-export async function markSafeLinkUsed(oneTimeCode, orderId) {
-  return await prisma.referralSafeLink.update({
+export async function markDiscountCodeUsed(oneTimeCode, orderId) {
+  return await prisma.referralDiscountCode.update({
     where: { oneTimeCode },
     data: {
       used: true,
@@ -300,12 +333,12 @@ export async function markSafeLinkUsed(oneTimeCode, orderId) {
  * Create referral join record
  * @param {Object} params - Parameters
  * @param {string} params.shop - Shop domain
- * @param {string} params.referralCode - Referral code used
+ * @param {string} params.referralCode - Referral code used (e.g., "ALICE123")
  * @param {string} params.orderId - Shopify order ID
  * @param {string} params.orderNumber - Order number
  * @param {string} params.refereeEmail - Referee email
- * @param {string} params.refereeStorefrontUserId - Referee Shopify Customer ID
- * @param {string} params.discountCode - Discount code applied
+ * @param {string} params.refereeStorefrontUserId - Referee Shopify Customer ID (GID)
+ * @param {string} params.discountCode - Discount code applied (e.g., "GACHI-ALICE123-XK7N")
  * @param {number} params.orderTotal - Order total
  * @param {number} params.discountAmount - Discount amount
  * @returns {Promise<ReferralJoin>} - Created referral join record
@@ -324,10 +357,10 @@ export async function createReferralJoin({
   const siteId = shop;
 
   // Find referral code record
-  const referralCodeRecord = await prisma.referralDiscountCode.findUnique({
+  const referralCodeRecord = await prisma.referralCode.findUnique({
     where: {
-      referralCode_siteId: {
-        referralCode,
+      code_siteId: {
+        code: referralCode,
         siteId,
       },
     },
@@ -352,8 +385,8 @@ export async function createReferralJoin({
   const referralJoin = await prisma.referralJoin.create({
     data: {
       referralCodeId: referralCodeRecord.id,
-      referrerStorefrontUserId: referrer.id, // Direct referrer link
-      refereeStorefrontUserId: refereeStorefrontUserId,
+      referrerId: referrer.id, // Direct referrer link
+      refereeShopifyCustomerId: refereeStorefrontUserId,
       refereeEmail,
       siteId,
       orderId,
@@ -385,7 +418,7 @@ export async function getOrCreateShopConfig(shop) {
         enabled: true,
         type: "percentage",
         amount: 10.0,
-        safeLinkExpiryHours: 168,
+        discountCodeExpiryHours: 168,
       },
     });
   }
@@ -393,3 +426,22 @@ export async function getOrCreateShopConfig(shop) {
   return config;
 }
 
+// ============================================================================
+// LEGACY ALIASES (for backward compatibility during migration)
+// These can be removed after all code is updated
+// ============================================================================
+
+/**
+ * @deprecated Use createDiscountCode instead
+ */
+export const createSafeLink = createDiscountCode;
+
+/**
+ * @deprecated Use findReferralByDiscountCode instead
+ */
+export const findReferralBySafeLink = findReferralByDiscountCode;
+
+/**
+ * @deprecated Use markDiscountCodeUsed instead
+ */
+export const markSafeLinkUsed = markDiscountCodeUsed;

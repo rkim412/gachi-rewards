@@ -7,6 +7,7 @@ import {
   markWebhookFailed,
   getFailedWebhooksForRetry,
 } from "../app/services/webhook-queue.server.js";
+import { fileURLToPath } from 'url';
 
 /**
  * Background Worker for Processing Webhook Queue
@@ -16,7 +17,7 @@ import {
  * 
  * Usage:
  *   - Run manually: node scripts/process-webhook-queue.js
- *   - Run as cron: */1 * * * * node scripts/process-webhook-queue.js
+ *   - Run as cron: every minute (use cron syntax: *\/1 * * * *)
  *   - Run as worker: node scripts/process-webhook-queue.js --watch
  */
 
@@ -44,8 +45,6 @@ function calculateBackoffDelay(attempt) {
  */
 async function processWebhookRecord(webhook) {
   try {
-    console.log(`[WORKER] Processing webhook ${webhook.id} (attempt ${webhook.attempts + 1}/${MAX_ATTEMPTS})`);
-
     // Mark as processing
     await markWebhookProcessing(webhook.id);
 
@@ -56,20 +55,19 @@ async function processWebhookRecord(webhook) {
     const queueRecord = {
       id: webhook.id,
       topic: webhook.topic,
-      shop: webhook.shop,
+      siteId: webhook.siteId, // Use siteId field (shop domain string)
       payload: webhook.payload,
     };
 
-    // Process webhook
+    // Process webhook (admin context will be retrieved from shop domain if needed)
     await processWebhook(queueRecord);
 
     // Mark as completed
     await markWebhookCompleted(webhook.id);
-    console.log(`[WORKER] ✅ Successfully processed webhook ${webhook.id}`);
 
     return true;
   } catch (error) {
-    console.error(`[WORKER] ❌ Error processing webhook ${webhook.id}:`, error);
+    console.error(`[WORKER] Error processing webhook ${webhook.id}:`, error.message);
 
     // Mark as failed (with retry logic)
     const { shouldRetry, attempts } = await markWebhookFailed(
@@ -79,16 +77,8 @@ async function processWebhookRecord(webhook) {
       MAX_ATTEMPTS
     );
 
-    if (shouldRetry) {
-      console.log(
-        `[WORKER] ⏳ Webhook ${webhook.id} will be retried (attempt ${attempts + 1}/${MAX_ATTEMPTS})`
-      );
-      
-      // Calculate backoff delay
-      const delay = calculateBackoffDelay(attempts + 1);
-      console.log(`[WORKER] ⏱️  Next retry in ~${Math.round(delay / 1000)}s`);
-    } else {
-      console.error(`[WORKER] 🛑 Webhook ${webhook.id} failed after ${MAX_ATTEMPTS} attempts`);
+    if (!shouldRetry) {
+      console.error(`[WORKER] Webhook ${webhook.id} failed after ${MAX_ATTEMPTS} attempts`);
     }
 
     return false;
@@ -125,25 +115,19 @@ async function processBatch(webhooks) {
  * @param {boolean} watch - If true, run continuously
  */
 async function processQueue(watch = false) {
-  console.log(`[WORKER] Starting webhook queue processor (watch: ${watch})`);
-
   do {
     try {
       // Process pending webhooks
       const pendingWebhooks = await getPendingWebhooks(BATCH_SIZE);
       
       if (pendingWebhooks.length > 0) {
-        console.log(`[WORKER] Found ${pendingWebhooks.length} pending webhook(s)`);
-        const { success, failed } = await processBatch(pendingWebhooks);
-        console.log(`[WORKER] Batch complete: ${success} succeeded, ${failed} failed`);
+        await processBatch(pendingWebhooks);
       } else {
         // Check for failed webhooks that should be retried
         const failedWebhooks = await getFailedWebhooksForRetry(BATCH_SIZE, MAX_ATTEMPTS);
         
         if (failedWebhooks.length > 0) {
-          console.log(`[WORKER] Found ${failedWebhooks.length} failed webhook(s) to retry`);
-          const { success, failed } = await processBatch(failedWebhooks);
-          console.log(`[WORKER] Retry batch complete: ${success} succeeded, ${failed} failed`);
+          await processBatch(failedWebhooks);
         } else {
           if (watch) {
             // Wait before checking again
@@ -152,7 +136,7 @@ async function processQueue(watch = false) {
         }
       }
     } catch (error) {
-      console.error(`[WORKER] Fatal error in queue processor:`, error);
+      console.error(`[WORKER] Fatal error:`, error.message);
       
       if (watch) {
         // Wait before retrying
@@ -164,9 +148,15 @@ async function processQueue(watch = false) {
   } while (watch);
 }
 
-// Run if called directly
-const isMainModule = import.meta.url === `file://${process.argv[1]}` || 
-                     process.argv[1]?.endsWith('process-webhook-queue.js');
+// Run if called directly - improved detection for Windows
+const __filename = fileURLToPath(import.meta.url);
+const scriptPath = __filename;
+const isMainModule = process.argv[1] && (
+  process.argv[1].endsWith('process-webhook-queue.js') ||
+  scriptPath.endsWith('process-webhook-queue.js') ||
+  process.argv[1].replace(/\\/g, '/').endsWith('scripts/process-webhook-queue.js') ||
+  scriptPath.replace(/\\/g, '/').endsWith('scripts/process-webhook-queue.js')
+);
 
 if (isMainModule) {
   const watch = process.argv.includes("--watch");
@@ -174,12 +164,11 @@ if (isMainModule) {
   processQueue(watch)
     .then(() => {
       if (!watch) {
-        console.log("[WORKER] Queue processing complete");
         process.exit(0);
       }
     })
     .catch((error) => {
-      console.error("[WORKER] Fatal error:", error);
+      console.error("[WORKER] Fatal error:", error.message);
       process.exit(1);
     });
 }

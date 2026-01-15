@@ -6,20 +6,42 @@ query Input {
         currencyCode
       }
     }
-    gachi_one_time_code: attribute(key: "gachi_one_time_code") {
+    # Fallback to cart metafields (for backward compatibility with old flow)
+    metafield_shopify_discount_code: metafield(namespace: "$app", key: "shopify_discount_code") {
+      value
+    }
+    metafield_discount_percentage: metafield(namespace: "$app", key: "discount_percentage") {
+      value
+    }
+    metafield_discount_type: metafield(namespace: "$app", key: "discount_type") {
+      value
+    }
+    # Legacy fallback to cart attributes
+    referral_shopify_discount_code: attribute(key: "referral_shopify_discount_code") {
       key
       value
     }
-    gachi_discount_percentage: attribute(key: "gachi_discount_percentage") {
+    referral_discount_percentage: attribute(key: "referral_discount_percentage") {
       key
       value
     }
-    gachi_discount_type: attribute(key: "gachi_discount_type") {
+    referral_discount_type: attribute(key: "referral_discount_type") {
       key
       value
     }
   }
   discount {
     discountClasses
+    # Read discount metafields set when App discount was created
+    # These contain the referral code and discount configuration
+    metafield_referral_code: metafield(namespace: "$app:referral", key: "referral_code") {
+      value
+    }
+    metafield_discount_percentage: metafield(namespace: "$app:referral", key: "discount_percentage") {
+      value
+    }
+    metafield_discount_type: metafield(namespace: "$app:referral", key: "discount_type") {
+      value
+    }
   }
 }

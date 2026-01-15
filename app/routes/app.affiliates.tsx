@@ -11,7 +11,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const affiliates = await prisma.storefrontUser.findMany({
     where: { siteId },
     include: {
-      referralDiscountCode: true,
+      referralCode: true,
       referralsMade: {
         select: {
           id: true,
@@ -37,8 +37,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     return {
       id: affiliate.id,
       email: affiliate.email,
-      referralCode: affiliate.referralDiscountCode?.referralCode || "N/A",
-      discountCode: affiliate.referralDiscountCode?.discountCode || "N/A",
+      referralCode: affiliate.referralCode?.code || "N/A",
       createdAt: affiliate.createdAt,
       stats: {
         totalReferrals,
@@ -134,4 +133,3 @@ export default function Affiliates() {
 export const headers: HeadersFunction = (headersArgs) => {
   return boundary.headers(headersArgs);
 };
-

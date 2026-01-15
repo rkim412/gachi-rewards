@@ -6,12 +6,12 @@ generator client {
 }
 
 // Database Configuration
-// Production: Uses PostgreSQL via Neon
-// Local Dev: Uses SQLite - change provider to "sqlite" for local testing
+// Local Dev: Uses SQLite (no database server needed)
+// Production: Change provider to "postgresql" and update DATABASE_URL for PostgreSQL
 // 
 // Prisma 6: Connection URL is read from DATABASE_URL environment variable
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -20,9 +20,11 @@ datasource db {
 // ============================================================================
 // Stores Shopify app authentication sessions
 // Managed by @shopify/shopify-app-session-storage-prisma
+// NOTE: This model is managed by @shopify/shopify-app-session-storage-prisma
+// Changing 'shop' to 'siteId' may require updating the session storage adapter
 model Session {
   id            String    @id
-  shop          String
+  shop          String    // Shop domain: "store.myshopify.com" (kept as 'shop' for compatibility with Shopify session storage)
   state         String
   isOnline      Boolean   @default(false)
   scope         String?
@@ -48,78 +50,78 @@ model Session {
 model StorefrontUser {
   id                Int @id @default(autoincrement())
   email             String  // Customer email (for lookups and self-referral prevention)
-  storefrontUserId  String  // Full Shopify GID: "gid://shopify/Customer/123456789"
+  shopifyCustomerId String  // Full Shopify GID: "gid://shopify/Customer/123456789"
   siteId            String  // Shop domain: "store.myshopify.com" (for multi-tenant isolation)
   
   // Relations
-  referralDiscountCode ReferralDiscountCode?  // Their referral code (one-to-one)
+  referralCode ReferralCode?  // Their referral code (one-to-one)
   referralsMade ReferralJoin[] @relation("ReferrerToReferee")  // People they referred (one-to-many)
   
   createdAt         DateTime @default(now())
   
   // Multi-tenant unique constraint: Same customer can exist in multiple shops
-  @@unique([storefrontUserId, siteId])
+  @@unique([shopifyCustomerId, siteId])
   
   // Indexes for performance
   @@index([email, siteId])        // Email lookup per shop
   @@index([siteId])               // Shop-specific queries
-  @@index([storefrontUserId])     // Shopify customer ID lookups
+  @@index([shopifyCustomerId])     // Shopify customer ID lookups
 }
 
-// ReferralDiscountCode: The main referral code and associated discount
-// One per customer, links to their Shopify discount code
-model ReferralDiscountCode {
+// ReferralCode: The shareable referral code for a customer
+// One per customer - this is what they share with friends (e.g., "ALICE123")
+// Previously named: ReferralDiscountCode
+model ReferralCode {
   id        Int @id @default(autoincrement())
-  referralCode String  // Unique referral code: "ALICE123" (8 chars, uppercase)
-  discountCode String  // Shopify discount code: "GACHI-ALICE123"
-  shopifyDiscountId String? // Full Shopify GID: "gid://shopify/DiscountCodeNode/123"
+  code      String  // Unique referral code: "ALICE123" (8 chars, uppercase)
   siteId    String  // Shop domain for multi-tenant isolation
-  referrerStorefrontUserId Int @unique  // Links to StorefrontUser who owns this code (one-to-one)
-  referrer StorefrontUser @relation(fields:[referrerStorefrontUserId], references:[id], onDelete: Cascade)
+  referrerId Int @unique  // Links to StorefrontUser who owns this code (one-to-one)
+  referrer StorefrontUser @relation(fields:[referrerId], references:[id], onDelete: Cascade)
   
   // Related records
   referralJoins ReferralJoin[]      // All referrals made using this code
-  referralSafeLinks ReferralSafeLink[]  // One-time safe links generated
+  discountCodes ReferralDiscountCode[]  // One-time discount codes generated from this referral code
   
   createdAt DateTime @default(now())
   
   // Unique constraint: Referral codes must be unique per shop
-  @@unique([referralCode, siteId])
+  @@unique([code, siteId])
   
   // Indexes for performance
-  @@index([discountCode])                    // Discount code lookups
-  @@index([siteId, referrerStorefrontUserId]) // Shop + referrer queries
-  @@index([siteId])                           // Shop-specific queries
+  @@index([siteId, referrerId]) // Shop + referrer queries
+  @@index([siteId])             // Shop-specific queries
 }
 
-// ReferralSafeLink: One-time use discount links for security
+// ReferralDiscountCode: One-time use Shopify discount codes for security
+// Created when someone clicks a referral link (e.g., "GACHI-ALICE123-XK7N")
 // Prevents coupon code scraping and abuse
-model ReferralSafeLink {
+// Previously named: ReferralSafeLink
+model ReferralDiscountCode {
   id             Int @id @default(autoincrement())
-  oneTimeCode    String @unique  // Unique token: "ALICE123-ABC123XYZ" (includes timestamp)
-  referralCodeId Int  // Links to parent ReferralDiscountCode
-  referralCode   ReferralDiscountCode @relation(fields:[referralCodeId], references:[id], onDelete: Cascade)
+  oneTimeCode    String @unique  // Unique token for tracking: "ALICE123-ABC123XYZ" (includes timestamp)
+  referralCodeId Int  // Links to parent ReferralCode
+  referralCode   ReferralCode @relation(fields:[referralCodeId], references:[id], onDelete: Cascade)
   
-  // Unique discount code for this safe link
-  discountCode    String?  // Unique discount code: "GACHI-ALICE123-ABC1"
+  // The actual Shopify discount code
+  code           String?  // Unique discount code: "GACHI-ALICE123-ABC1"
   shopifyDiscountId String?  // Full Shopify GID: "gid://shopify/DiscountCodeNode/123"
   
   // Usage tracking
-  used           Boolean @default(false)  // Has this link been used?
+  used           Boolean @default(false)  // Has this discount been used?
   usedAt         DateTime?  // When was it used?
   usedByOrderId  String?  // Full Shopify GID: "gid://shopify/Order/123" (if used)
   
   // Expiry management
   createdAt      DateTime @default(now())
-  expiresAt      DateTime?  // When does this link expire? (default: 7 days from creation)
+  expiresAt      DateTime?  // When does this discount expire? (default: 7 days from creation)
   
   // Indexes for performance and cleanup
-  @@index([oneTimeCode])           // Fast lookup by code
-  @@index([used])                  // Find unused links
-  @@index([expiresAt])             // Cleanup expired links
-  @@index([used, expiresAt])       // Find unused expired links for cleanup
-  @@index([referralCodeId])        // Links by referral code
-  @@index([discountCode])           // Lookup by discount code
+  @@index([oneTimeCode])           // Fast lookup by one-time code
+  @@index([used])                  // Find unused discounts
+  @@index([expiresAt])             // Cleanup expired discounts
+  @@index([used, expiresAt])       // Find unused expired discounts for cleanup
+  @@index([referralCodeId])        // Discounts by referral code
+  @@index([code])                  // Lookup by discount code
 }
 
 // ReferralJoin: Tracks when a referral results in a purchase
@@ -130,15 +132,15 @@ model ReferralJoin {
   
   // Referral relationship (via referral code)
   referralCodeId Int  // Which referral code was used
-  referralCode   ReferralDiscountCode @relation(fields:[referralCodeId], references:[id], onDelete: Cascade)
+  referralCode   ReferralCode @relation(fields:[referralCodeId], references:[id], onDelete: Cascade)
   
-  // ENHANCEMENT: Direct referrer link (for easier queries and better performance)
+  // Direct referrer link (for easier queries and better performance)
   // This is the StorefrontUser who did the referring
-  referrerStorefrontUserId Int?  // Direct link to referrer (optional for backward compatibility)
-  referrer StorefrontUser? @relation("ReferrerToReferee", fields:[referrerStorefrontUserId], references:[id])
+  referrerId Int  // Direct link to referrer
+  referrer StorefrontUser @relation("ReferrerToReferee", fields:[referrerId], references:[id])
   
   // Referee (person who was referred) information
-  refereeStorefrontUserId String?  // Full Shopify GID: "gid://shopify/Customer/456" (optional - guest orders)
+  refereeShopifyCustomerId String?  // Full Shopify GID: "gid://shopify/Customer/456" (optional - guest orders)
   refereeEmail String  // Referee email (always available, used for self-referral prevention)
   
   // Shop and order information
@@ -147,7 +149,7 @@ model ReferralJoin {
   orderNumber String?  // Human-readable order number: "1001"
   
   // Discount and financial information
-  discountCode String?  // The discount code that was applied: "GACHI-ALICE123"
+  discountCode String?  // The discount code that was applied: "GACHI-ALICE123-XK7N"
   discountAmount Float?  // Amount of discount applied (in shop currency)
   orderTotal Float  // Total order value (in shop currency)
   
@@ -166,7 +168,7 @@ model ReferralJoin {
   @@index([refereeEmail, siteId])       // Customer lookup
   @@index([siteId, createdAt])          // Shop analytics (time-based queries)
   @@index([referralCodeId, createdAt])  // Referral performance over time
-  @@index([referrerStorefrontUserId])    // ENHANCEMENT: Direct referrer queries (who referred whom)
+  @@index([referrerId])    // Direct referrer queries (who referred whom)
 }
 
 // ReferralConfig: Per-shop configuration settings
@@ -190,8 +192,8 @@ model ReferralConfig {
   // Program limits
   maxReferrals Int?  // Maximum referrals per customer (optional, null = unlimited)
   
-  // Safe link settings
-  safeLinkExpiryHours Int @default(168)  // Safe link expiry in hours (default: 7 days = 168 hours)
+  // Discount code settings
+  discountCodeExpiryHours Int @default(168)  // Discount code expiry in hours (default: 7 days = 168 hours)
   
   // Timestamps
   createdAt    DateTime @default(now())
@@ -203,7 +205,7 @@ model ReferralConfig {
 model WebhookQueue {
   id        Int @id @default(autoincrement())
   topic     String  // Webhook topic: "orders/create", "app/uninstalled", etc.
-  shop      String  // Shop domain: "store.myshopify.com"
+  siteId    String  // Shop domain: "store.myshopify.com"
   payload   String  // JSON string of webhook payload
   status    String  @default("pending")  // pending, processing, completed, failed
   attempts  Int     @default(0)  // Number of processing attempts
@@ -214,6 +216,6 @@ model WebhookQueue {
   
   // Indexes for performance
   @@index([status, createdAt])  // Find pending webhooks to process
-  @@index([shop, topic])        // Shop-specific queries
+  @@index([siteId, topic])        // Shop-specific queries
   @@index([status])             // Status queries
 }
